@@ -6,7 +6,7 @@ WORKDIR /angular-app
 COPY ./booklore-ui/package.json ./booklore-ui/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm config set registry http://registry.npmjs.org/ \
-    && npm ci --force
+    && npm ci --force --legacy-peer-deps
 
 COPY ./booklore-ui /angular-app/
 
