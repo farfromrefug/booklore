@@ -1,4 +1,4 @@
-:root[class~="p-dark"] {
+.p-dark {
   /* Primary */
   --primary-color: var(--p-primary-color);
   --primary-contrast-color: var(--p-primary-contrast-color);
@@ -24,4 +24,7 @@
 
   /* Code, Mark & Selection */
   --code-background: var(--p-surface-900);
+  
+  /* Gradient background end color */
+  --glow-gradient-end: #000000;
 }
