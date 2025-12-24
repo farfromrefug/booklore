@@ -528,15 +528,16 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   }
 
   confirmDeleteBooks(): void {
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
     this.confirmationService.confirm({
-      message: `Are you sure you want to delete ${this.selectedBooks.size} book(s)?`,
+      message: `Are you sure you want to delete ${expandedSelection.size} book(s)?`,
       header: 'Confirm Deletion',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        const count = this.selectedBooks.size;
+        const count = expandedSelection.size;
         const loader = this.loadingService.show(`Deleting ${count} book(s)...`);
 
-        this.bookService.deleteBooks(this.selectedBooks)
+        this.bookService.deleteBooks(expandedSelection)
           .pipe(finalize(() => this.loadingService.hide(loader)))
           .subscribe(() => {
             this.selectedBooks.clear();
@@ -623,10 +624,11 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
 
   unshelfBooks() {
     if (!this.entity) return;
-    const count = this.selectedBooks.size;
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
+    const count = expandedSelection.size;
     const loader = this.loadingService.show(`Unshelving ${count} book(s)...`);
 
-    this.bookService.updateBookShelves(this.selectedBooks, new Set(), new Set([this.entity.id]))
+    this.bookService.updateBookShelves(expandedSelection, new Set(), new Set([this.entity.id]))
       .pipe(finalize(() => this.loadingService.hide(loader)))
       .subscribe({
         next: () => {
@@ -640,36 +642,44 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   }
 
   openShelfAssigner(): void {
-    this.dynamicDialogRef = this.dialogHelperService.openShelfAssignerDialog(null, this.selectedBooks);
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
+    this.dynamicDialogRef = this.dialogHelperService.openShelfAssignerDialog(null, expandedSelection);
   }
 
   lockUnlockMetadata(): void {
-    this.dynamicDialogRef = this.dialogHelperService.openLockUnlockMetadataDialog(this.selectedBooks);
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
+    this.dynamicDialogRef = this.dialogHelperService.openLockUnlockMetadataDialog(expandedSelection);
   }
 
   autoFetchMetadata(): void {
     if (!this.selectedBooks || this.selectedBooks.size === 0) return;
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
     this.taskHelperService.refreshMetadataTask({
       refreshType: MetadataRefreshType.BOOKS,
-      bookIds: Array.from(this.selectedBooks),
+      bookIds: Array.from(expandedSelection),
     }).subscribe();
   }
 
   fetchMetadata(): void {
-    this.dialogHelperService.openMetadataRefreshDialog(this.selectedBooks);
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
+    this.dialogHelperService.openMetadataRefreshDialog(expandedSelection);
   }
 
   bulkEditMetadata(): void {
-    this.dialogHelperService.openBulkMetadataEditDialog(this.selectedBooks);
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
+    this.dialogHelperService.openBulkMetadataEditDialog(expandedSelection);
   }
 
   multiBookEditMetadata(): void {
-    this.dialogHelperService.openMultibookMetadataEditorDialog(this.selectedBooks);
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
+    this.dialogHelperService.openMultibookMetadataEditorDialog(expandedSelection);
   }
 
   regenerateCovers(): void {
     console.log('regenerateCovers', this.selectedBooks);
-    Promise.all([...this.selectedBooks].map(
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
+    const bookIds = [...expandedSelection];
+    Promise.all(bookIds.map(
       bookId => new Promise((resolve, reject) =>{
         this.bookService.regenerateCover(bookId).subscribe({
           next:resolve, 
@@ -677,12 +687,29 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
         })
       })
     )).then(()=>{
-    this.messageService.add({
-      severity: "success",
-      summary: "Success",
-      detail:
-        "Book covers regenerated successfully. Refresh page to see the new covers.",
-    });
+      // Fetch updated book data to refresh covers
+      Promise.all(bookIds.map(bookId => 
+        new Promise<Book>((resolve, reject) => {
+          this.bookService.getBookByIdFromAPI(bookId, false).subscribe({
+            next: resolve,
+            error: reject
+          });
+        })
+      )).then((updatedBooks) => {
+        // Update books in state
+        this.bookService.handleMultipleBookUpdates(updatedBooks);
+        this.messageService.add({
+          severity: "success",
+          summary: "Success",
+          detail: "Book covers regenerated successfully.",
+        });
+      }).catch(() => {
+        this.messageService.add({
+          severity: "warning",
+          summary: "Partial Success",
+          detail: "Covers regenerated but failed to refresh display. Please refresh the page.",
+        });
+      });
   }).catch(() => 
     this.messageService.add({
       severity: "error",
@@ -692,7 +719,42 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   }
 
   moveFiles() {
-    this.dialogHelperService.openFileMoverDialog(this.selectedBooks);
+    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
+    this.dialogHelperService.openFileMoverDialog(expandedSelection);
+  }
+
+  /**
+   * Expands selected book IDs to include all books in series when series is collapsed.
+   * When series is collapsed, selecting a series representative book should select all books in that series.
+   */
+  private expandSelectedBooksForSeries(selectedBookIds: Set<number>): Set<number> {
+    if (!this.seriesCollapseFilter.isSeriesCollapsed) {
+      return selectedBookIds;
+    }
+
+    const expandedSelection = new Set<number>();
+    const currentState = this.bookService.bookStateSubject.value;
+    const allBooks = currentState.books || [];
+
+    selectedBookIds.forEach(selectedId => {
+      // Find the selected book in current books (might be a series representative)
+      const selectedBook = this.currentBooks.find(b => b.id === selectedId);
+      
+      if (selectedBook?.metadata?.seriesName && selectedBook.seriesCount && selectedBook.seriesCount > 1) {
+        // This is a collapsed series - find all books in this series
+        const seriesName = selectedBook.metadata.seriesName;
+        allBooks.forEach(book => {
+          if (book.metadata?.seriesName === seriesName) {
+            expandedSelection.add(book.id);
+          }
+        });
+      } else {
+        // Not a series or series not collapsed - just add the book
+        expandedSelection.add(selectedId);
+      }
+    });
+
+    return expandedSelection;
   }
 
   private isLibrary(entity: Library | Shelf | MagicShelf): entity is Library {
