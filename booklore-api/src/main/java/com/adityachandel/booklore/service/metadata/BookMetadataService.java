@@ -223,9 +223,9 @@ public class BookMetadataService {
         notificationService.sendMessage(Topic.LOG, LogNotification.info(message));
 
         BookFileProcessor processor = processorRegistry.getProcessorOrThrow(book.getBookType());
-        processor.generateCover(book);
+        boolean success = processor.generateCover(book);
 
-        log.info("{}Successfully regenerated cover for book ID {} ({})", progress, book.getId(), title);
+        log.info("{}regenerated cover regeneration for book ID {} ({}) finished with success={}", progress, book.getId(), title, success);
     }
 
     public BookMetadata getComicInfoMetadata(long bookId) {
