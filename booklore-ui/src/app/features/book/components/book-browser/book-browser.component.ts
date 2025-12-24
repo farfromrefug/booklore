@@ -528,16 +528,15 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   }
 
   confirmDeleteBooks(): void {
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
     this.confirmationService.confirm({
       message: `Are you sure you want to delete ${expandedSelection.size} book(s)?`,
       header: 'Confirm Deletion',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        const count = expandedSelection.size;
+        const count = this.selectedBooks.size;
         const loader = this.loadingService.show(`Deleting ${count} book(s)...`);
 
-        this.bookService.deleteBooks(expandedSelection)
+        this.bookService.deleteBooks(this.selectedBooks)
           .pipe(finalize(() => this.loadingService.hide(loader)))
           .subscribe(() => {
             this.selectedBooks.clear();
@@ -624,11 +623,10 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
 
   unshelfBooks() {
     if (!this.entity) return;
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
-    const count = expandedSelection.size;
+    const count = this.selectedBooks.size;
     const loader = this.loadingService.show(`Unshelving ${count} book(s)...`);
 
-    this.bookService.updateBookShelves(expandedSelection, new Set(), new Set([this.entity.id]))
+    this.bookService.updateBookShelves(this.selectedBooks, new Set(), new Set([this.entity.id]))
       .pipe(finalize(() => this.loadingService.hide(loader)))
       .subscribe({
         next: () => {
@@ -642,42 +640,35 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   }
 
   openShelfAssigner(): void {
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
-    this.dynamicDialogRef = this.dialogHelperService.openShelfAssignerDialog(null, expandedSelection);
+    this.dynamicDialogRef = this.dialogHelperService.openShelfAssignerDialog(null, this.selectedBooks);
   }
 
   lockUnlockMetadata(): void {
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
-    this.dynamicDialogRef = this.dialogHelperService.openLockUnlockMetadataDialog(expandedSelection);
+    this.dynamicDialogRef = this.dialogHelperService.openLockUnlockMetadataDialog(this.selectedBooks);
   }
 
   autoFetchMetadata(): void {
     if (!this.selectedBooks || this.selectedBooks.size === 0) return;
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
     this.taskHelperService.refreshMetadataTask({
       refreshType: MetadataRefreshType.BOOKS,
-      bookIds: Array.from(expandedSelection),
+      bookIds: Array.from(this.selectedBooks),
     }).subscribe();
   }
 
   fetchMetadata(): void {
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
-    this.dialogHelperService.openMetadataRefreshDialog(expandedSelection);
+    this.dialogHelperService.openMetadataRefreshDialog(this.selectedBooks);
   }
 
   bulkEditMetadata(): void {
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
-    this.dialogHelperService.openBulkMetadataEditDialog(expandedSelection);
+    this.dialogHelperService.openBulkMetadataEditDialog(this.selectedBooks);
   }
 
   multiBookEditMetadata(): void {
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
-    this.dialogHelperService.openMultibookMetadataEditorDialog(expandedSelection);
+    this.dialogHelperService.openMultibookMetadataEditorDialog(this.selectedBooks);
   }
 
   regenerateCovers(): void {
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
-    const bookIds = [...expandedSelection];
+    const bookIds = [...this.selectedBooks];
     
     if (bookIds.length === 0) return;
 
@@ -687,7 +678,7 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
         // Then fetch updated book data to refresh covers
         return forkJoin(bookIds.map(bookId => this.bookService.getBookByIdFromAPI(bookId, false)));
       }),
-      catchError((error) => {
+      catchError(() => {
         this.messageService.add({
           severity: "error",
           summary: "Error",
@@ -709,42 +700,7 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   }
 
   moveFiles() {
-    const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
-    this.dialogHelperService.openFileMoverDialog(expandedSelection);
-  }
-
-  /**
-   * Expands selected book IDs to include all books in series when series is collapsed.
-   * When series is collapsed, selecting a series representative book should select all books in that series.
-   */
-  private expandSelectedBooksForSeries(selectedBookIds: Set<number>): Set<number> {
-    if (!this.seriesCollapseFilter.isSeriesCollapsed) {
-      return selectedBookIds;
-    }
-
-    const expandedSelection = new Set<number>();
-    const currentState = this.bookService.bookStateSubject.value;
-    const allBooks = currentState.books || [];
-
-    selectedBookIds.forEach(selectedId => {
-      // Find the selected book in current books (might be a series representative)
-      const selectedBook = this.currentBooks.find(b => b.id === selectedId);
-      
-      if (selectedBook?.metadata?.seriesName && selectedBook.seriesCount && selectedBook.seriesCount > 1) {
-        // This is a collapsed series - find all books in this series
-        const seriesName = selectedBook.metadata.seriesName;
-        allBooks.forEach(book => {
-          if (book.metadata?.seriesName === seriesName) {
-            expandedSelection.add(book.id);
-          }
-        });
-      } else {
-        // Not a series or series not collapsed - just add the book
-        expandedSelection.add(selectedId);
-      }
-    });
-
-    return expandedSelection;
+    this.dialogHelperService.openFileMoverDialog(this.selectedBooks);
   }
 
   private isLibrary(entity: Library | Shelf | MagicShelf): entity is Library {
