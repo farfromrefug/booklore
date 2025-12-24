@@ -5,7 +5,7 @@ import {PageTitleService} from "../../../../shared/service/page-title.service";
 import {LibraryService} from '../../service/library.service';
 import {BookService} from '../../service/book.service';
 import {catchError, debounceTime, filter, map, switchMap, take} from 'rxjs/operators';
-import {BehaviorSubject, combineLatest, finalize, Observable, of, Subject} from 'rxjs';
+import {BehaviorSubject, combineLatest, finalize, forkJoin, Observable, of, Subject} from 'rxjs';
 import {ShelfService} from '../../service/shelf.service';
 import {DynamicDialogRef} from 'primeng/dynamicdialog';
 import {Library} from '../../model/library.model';
@@ -676,26 +676,27 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   }
 
   regenerateCovers(): void {
-    console.log('regenerateCovers', this.selectedBooks);
     const expandedSelection = this.expandSelectedBooksForSeries(this.selectedBooks);
     const bookIds = [...expandedSelection];
-    Promise.all(bookIds.map(
-      bookId => new Promise((resolve, reject) =>{
-        this.bookService.regenerateCover(bookId).subscribe({
-          next:resolve, 
-          error: reject
-        })
+    
+    if (bookIds.length === 0) return;
+
+    // First regenerate all covers
+    forkJoin(bookIds.map(bookId => this.bookService.regenerateCover(bookId))).pipe(
+      switchMap(() => {
+        // Then fetch updated book data to refresh covers
+        return forkJoin(bookIds.map(bookId => this.bookService.getBookByIdFromAPI(bookId, false)));
+      }),
+      catchError((error) => {
+        this.messageService.add({
+          severity: "error",
+          summary: "Error",
+          detail: "Failed to regenerate covers",
+        });
+        return of([]);
       })
-    )).then(()=>{
-      // Fetch updated book data to refresh covers
-      Promise.all(bookIds.map(bookId => 
-        new Promise<Book>((resolve, reject) => {
-          this.bookService.getBookByIdFromAPI(bookId, false).subscribe({
-            next: resolve,
-            error: reject
-          });
-        })
-      )).then((updatedBooks) => {
+    ).subscribe((updatedBooks) => {
+      if (updatedBooks.length > 0) {
         // Update books in state
         this.bookService.handleMultipleBookUpdates(updatedBooks);
         this.messageService.add({
@@ -703,19 +704,8 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
           summary: "Success",
           detail: "Book covers regenerated successfully.",
         });
-      }).catch(() => {
-        this.messageService.add({
-          severity: "warning",
-          summary: "Partial Success",
-          detail: "Covers regenerated but failed to refresh display. Please refresh the page.",
-        });
-      });
-  }).catch(() => 
-    this.messageService.add({
-      severity: "error",
-      summary: "Error",
-      detail: "Failed regenerate covers",
-    }));
+      }
+    });
   }
 
   moveFiles() {
