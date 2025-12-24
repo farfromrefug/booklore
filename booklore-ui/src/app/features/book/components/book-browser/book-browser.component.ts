@@ -5,7 +5,7 @@ import {PageTitleService} from "../../../../shared/service/page-title.service";
 import {LibraryService} from '../../service/library.service';
 import {BookService} from '../../service/book.service';
 import {catchError, debounceTime, filter, map, switchMap, take} from 'rxjs/operators';
-import {BehaviorSubject, combineLatest, finalize, Observable, of, Subject} from 'rxjs';
+import {BehaviorSubject, combineLatest, finalize, forkJoin, Observable, of, Subject} from 'rxjs';
 import {ShelfService} from '../../service/shelf.service';
 import {DynamicDialogRef} from 'primeng/dynamicdialog';
 import {Library} from '../../model/library.model';
@@ -464,14 +464,30 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
     );
   }
 
-  onCheckboxClicked(event: { index: number; bookId: number; selected: boolean; shiftKey: boolean }) {
-    const {index, bookId, selected, shiftKey} = event;
-    if (!shiftKey || this.lastSelectedIndex === null) {
-      if (selected) {
-        this.selectedBooks.add(bookId);
+  handleBookSelection(book: Book, selected: boolean) {
+    if (selected) {
+      if (book.seriesBooks) {
+        //it is a series
+        this.selectedBooks = new Set([...this.selectedBooks, ...book.seriesBooks.map(book=>book.id)]);
       } else {
-        this.selectedBooks.delete(bookId);
+      this.selectedBooks.add(book.id);
       }
+    } else {
+      if (book.seriesBooks) {
+        //it is a series
+        book.seriesBooks.forEach(book =>{
+          this.selectedBooks.delete(book.id);
+        });
+      } else {
+      this.selectedBooks.delete(book.id);
+      }
+    }
+  }
+
+  onCheckboxClicked(event: { index: number; book: Book; selected: boolean; shiftKey: boolean }) {
+    const {index, book, selected, shiftKey} = event;
+    if (!shiftKey || this.lastSelectedIndex === null) {
+      this.handleBookSelection(book, selected);
       this.lastSelectedIndex = index;
     } else {
       const start = Math.min(this.lastSelectedIndex, index);
@@ -480,23 +496,14 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
       for (let i = start; i <= end; i++) {
         const book = this.currentBooks[i];
         if (!book) continue;
-
-        if (isUnselectingRange) {
-          this.selectedBooks.delete(book.id);
-        } else {
-          this.selectedBooks.add(book.id);
-        }
+        this.handleBookSelection(book, !isUnselectingRange);
       }
     }
     this.tieredMenuItems = this.bookMenuService.getTieredMenuItems(this.selectedBooks);
   }
 
-  handleBookSelect(bookId: number, selected: boolean): void {
-    if (selected) {
-      this.selectedBooks.add(bookId);
-    } else {
-      this.selectedBooks.delete(bookId);
-    }
+  handleBookSelect(book: Book, selected: boolean): void {
+    this.handleBookSelection(book, selected);
     this.isDrawerVisible = this.selectedBooks.size > 0;
     this.tieredMenuItems = this.bookMenuService.getTieredMenuItems(this.selectedBooks);
   }
@@ -542,8 +549,7 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
             this.selectedBooks.clear();
           });
       },
-      reject: () => {
-      }
+      reject: () => {}
     });
   }
 
@@ -668,27 +674,35 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   }
 
   regenerateCovers(): void {
-    console.log('regenerateCovers', this.selectedBooks);
-    Promise.all([...this.selectedBooks].map(
-      bookId => new Promise((resolve, reject) =>{
-        this.bookService.regenerateCover(bookId).subscribe({
-          next:resolve, 
-          error: reject
-        })
+    const bookIds = [...this.selectedBooks];
+    
+    if (bookIds.length === 0) return;
+
+    // First regenerate all covers
+    forkJoin(bookIds.map(bookId => this.bookService.regenerateCover(bookId))).pipe(
+      switchMap(() => {
+        // Then fetch updated book data to refresh covers
+        return forkJoin(bookIds.map(bookId => this.bookService.getBookByIdFromAPI(bookId, false)));
+      }),
+      catchError(() => {
+        this.messageService.add({
+          severity: "error",
+          summary: "Error",
+          detail: "Failed to regenerate covers",
+        });
+        return of([]);
       })
-    )).then(()=>{
-    this.messageService.add({
-      severity: "success",
-      summary: "Success",
-      detail:
-        "Book covers regenerated successfully. Refresh page to see the new covers.",
+    ).subscribe((updatedBooks) => {
+      if (updatedBooks.length > 0) {
+        // Update books in state
+        this.bookService.handleMultipleBookUpdates(updatedBooks);
+        this.messageService.add({
+          severity: "success",
+          summary: "Success",
+          detail: "Book covers regenerated successfully.",
+        });
+      }
     });
-  }).catch(() => 
-    this.messageService.add({
-      severity: "error",
-      summary: "Error",
-      detail: "Failed regenerate covers",
-    }));
   }
 
   moveFiles() {
