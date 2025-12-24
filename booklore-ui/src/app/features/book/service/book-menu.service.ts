@@ -22,7 +22,7 @@ export class BookMenuService {
     autoFetchMetadata: () => void,
     fetchMetadata: () => void,
     bulkEditMetadata: () => void,
-    multiBookEditMetadata: () => void, 
+    multiBookEditMetadata: () => void,
     regenerateCovers: () => void): MenuItem[] {
     return [
       {
@@ -46,10 +46,10 @@ export class BookMenuService {
         command: multiBookEditMetadata
       },
       {
-        label: 'Regenerate covers',
-        icon: 'pi pi-refresh',
+        label: 'Regenerate Covers',
+        icon: 'pi pi-image',
         command: regenerateCovers
-      },
+      }
     ];
   }
 
