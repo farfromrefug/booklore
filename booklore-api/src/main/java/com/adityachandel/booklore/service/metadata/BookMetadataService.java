@@ -224,8 +224,11 @@ public class BookMetadataService {
 
         BookFileProcessor processor = processorRegistry.getProcessorOrThrow(book.getBookType());
         boolean success = processor.generateCover(book);
-
         log.info("{}regenerated cover regeneration for book ID {} ({}) finished with success={}", progress, book.getId(), title, success);
+        if (!success) {
+            throw ApiError.FAILED_TO_REGENERATE_COVER.createException();
+        }
+
     }
 
     public BookMetadata getComicInfoMetadata(long bookId) {
