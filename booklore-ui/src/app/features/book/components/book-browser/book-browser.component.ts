@@ -256,6 +256,7 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
       () => this.fetchMetadata(),
       () => this.bulkEditMetadata(),
       () => this.multiBookEditMetadata(),
+      () => this.regenerateCovers(),
     );
     this.tieredMenuItems = this.bookMenuService.getTieredMenuItems(this.selectedBooks);
 
@@ -272,9 +273,9 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
       const filterMode = queryParamMap.get(QUERY_PARAMS.FMODE) || user.user?.userSettings?.filterMode;
 
       if (filterMode && filterMode !== this.selectedFilterMode.getValue()) {
-        this.selectedFilterMode.next(<BookFilterMode>filterMode);
+        this.selectedFilterMode.next((filterMode as BookFilterMode));
         if (this.bookFilterComponent) {
-          this.bookFilterComponent.selectedFilterMode = <BookFilterMode>filterMode;
+          this.bookFilterComponent.selectedFilterMode = filterMode as BookFilterMode;
         }
       }
 
@@ -664,6 +665,30 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
 
   multiBookEditMetadata(): void {
     this.dialogHelperService.openMultibookMetadataEditorDialog(this.selectedBooks);
+  }
+
+  regenerateCovers(): void {
+    console.log('regenerateCovers', this.selectedBooks);
+    Promise.all([...this.selectedBooks].map(
+      bookId => new Promise((resolve, reject) =>{
+        this.bookService.regenerateCover(bookId).subscribe({
+          next:resolve, 
+          error: reject
+        })
+      })
+    )).then(()=>{
+    this.messageService.add({
+      severity: "success",
+      summary: "Success",
+      detail:
+        "Book covers regenerated successfully. Refresh page to see the new covers.",
+    });
+  }).catch(() => 
+    this.messageService.add({
+      severity: "error",
+      summary: "Error",
+      detail: "Failed regenerate covers",
+    }));
   }
 
   moveFiles() {
