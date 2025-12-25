@@ -24,7 +24,6 @@ public class AppSettings {
     private Integer pdfCacheSizeInMb;
     private Integer maxFileUploadSizeInMb;
     private boolean remoteAuthEnabled;
-    private boolean bookDeletionEnabled;
     private boolean metadataDownloadOnBookdrop;
     private boolean oidcEnabled;
     private OidcProviderDetails oidcProviderDetails;
@@ -34,4 +33,5 @@ public class AppSettings {
     private MetadataPersistenceSettings metadataPersistenceSettings;
     private MetadataPublicReviewsSettings metadataPublicReviewsSettings;
     private KoboSettings koboSettings;
+    private CoverCroppingSettings coverCroppingSettings;
 }

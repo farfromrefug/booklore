@@ -78,8 +78,6 @@ public class CbxProcessor extends AbstractFileProcessor implements BookFileProce
                 try {
                     boolean saved = fileService.saveCoverImages(image, bookEntity.getId());
                     if (saved) {
-                        bookEntity.getMetadata().setCoverUpdatedOn(Instant.now());
-                        bookMetadataRepository.save(bookEntity.getMetadata());
                         return true;
                     } else {
                         log.warn("Could not save image extracted from CBZ as cover for '{}'", bookEntity.getFileName());

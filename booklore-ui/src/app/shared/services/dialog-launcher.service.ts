@@ -11,7 +11,7 @@ import {CreateUserDialogComponent} from '../../features/settings/user-management
 import {CreateEmailRecipientDialogComponent} from '../../features/settings/email-v2/create-email-recipient-dialog/create-email-recipient-dialog.component';
 import {CreateEmailProviderDialogComponent} from '../../features/settings/email-v2/create-email-provider-dialog/create-email-provider-dialog.component';
 import {DirectoryPickerComponent} from '../components/directory-picker/directory-picker.component';
-import {BookdropFinalizeResultDialogComponent} from '../../features/bookdrop/component/bookdrop-finalize-result-dialog/bookdrop-finalize-result-dialog-component';
+import {BookdropFinalizeResultDialogComponent} from '../../features/bookdrop/component/bookdrop-finalize-result-dialog/bookdrop-finalize-result-dialog.component';
 import {BookdropFinalizeResult} from '../../features/bookdrop/service/bookdrop.service';
 import {MetadataReviewDialogComponent} from '../../features/metadata/component/metadata-review-dialog/metadata-review-dialog-component';
 import {MetadataRefreshType} from '../../features/metadata/model/request/metadata-refresh-type.enum';
@@ -34,12 +34,14 @@ export class DialogLauncherService {
     modal: true,
     resizable: false,
     showHeader: true,
+    maximizable: false,
   }
 
   openDialog(component: any, options: {}): DynamicDialogRef | null {
     return this.dialogService.open(component, {
-      ...this.defaultDialogOptions, 
+      ...this.defaultDialogOptions,
       ...options,
+
     });
   }
 
@@ -64,7 +66,7 @@ export class DialogLauncherService {
 
   openDirectoryPickerDialog(): DynamicDialogRef | null {
     return this.openDialog(DirectoryPickerComponent, {
-      header: 'Select Media Directory',
+      showHeader: false,
       styleClass: 'dynamic-dialog-minimal',
     });
   }
@@ -86,7 +88,7 @@ export class DialogLauncherService {
       data: {
         libraryId: libraryId,
         metadataRefreshType: MetadataRefreshType.LIBRARY,
-      }
+      },
     });
   }
 
@@ -182,7 +184,7 @@ export class DialogLauncherService {
   openIconPickerDialog(): DynamicDialogRef | null {
     return this.openDialog(IconPickerComponent, {
       header: 'Choose an Icon',
-      styleClass: 'dialog-maximal',
+      styleClass: 'dialog-medium',
     });
   }
 
