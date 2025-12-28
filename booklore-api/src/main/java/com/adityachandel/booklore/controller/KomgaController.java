@@ -121,13 +121,21 @@ public class KomgaController {
     @GetMapping("/v1/books/{bookId}/pages/{pageNumber}")
     public ResponseEntity<Resource> getBookPage(
             @Parameter(description = "Book ID") @PathVariable Long bookId,
-            @Parameter(description = "Page number") @PathVariable Integer pageNumber) {
-        // For now, just return the thumbnail for any page request
-        // A full implementation would extract individual pages from the book
-        Resource coverImage = bookService.getBookThumbnail(bookId);
-        return ResponseEntity.ok()
-                .header("Content-Type", "image/jpeg")
-                .body(coverImage);
+            @Parameter(description = "Page number") @PathVariable Integer pageNumber,
+            @Parameter(description = "Convert image format (e.g., 'png')") @RequestParam(required = false) String convert) {
+        try {
+            boolean convertToPng = "png".equalsIgnoreCase(convert);
+            Resource pageImage = komgaService.getBookPageImage(bookId, pageNumber, convertToPng);
+            // Note: When not converting, we assume JPEG as most CBZ files contain JPEG images,
+            // but the actual format may vary (PNG, WebP, etc.)
+            String contentType = convertToPng ? "image/png" : "image/jpeg";
+            return ResponseEntity.ok()
+                    .header("Content-Type", contentType)
+                    .body(pageImage);
+        } catch (Exception e) {
+            log.error("Failed to get page {} from book {}", pageNumber, bookId, e);
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @Operation(summary = "Download book file")
@@ -164,5 +172,16 @@ public class KomgaController {
         }
         
         return ResponseEntity.ok(komgaMapper.toKomgaUserDto(opdsUser));
+    }
+    
+    // ==================== Collections ====================
+    
+    @Operation(summary = "List collections")
+    @GetMapping("/v1/collections")
+    public ResponseEntity<KomgaPageableDto<KomgaCollectionDto>> getCollections(
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all collections without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
+        return ResponseEntity.ok(komgaService.getCollections(page, size, unpaged));
     }
 }
