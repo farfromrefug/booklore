@@ -1,5 +1,6 @@
 package com.adityachandel.booklore.mapper.komga;
 
+import com.adityachandel.booklore.service.appsettings.AppSettingService;
 import com.adityachandel.booklore.context.KomgaCleanContext;
 import com.adityachandel.booklore.model.dto.komga.KomgaBookDto;
 import com.adityachandel.booklore.model.dto.komga.KomgaSeriesDto;
@@ -8,7 +9,13 @@ import com.adityachandel.booklore.model.entity.BookMetadataEntity;
 import com.adityachandel.booklore.model.entity.LibraryEntity;
 import com.adityachandel.booklore.model.enums.BookFileType;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
+import org.mockito.InjectMocks;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -16,9 +23,20 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(MockitoExtension.class)
 class KomgaMapperTest {
 
-    private final KomgaMapper mapper = new KomgaMapper();
+    @Mock private AppSettingService appSettingService;
+
+    @InjectMocks
+    private KomgaMapper mapper;
+
+    @BeforeEach
+    void setUp() {
+        // Initialize mapper after mocks are created
+        MockitoAnnotations.openMocks(this);
+        mapper = new KomgaMapper(appSettingService);
+    }
     
     @AfterEach
     void cleanup() {
@@ -47,7 +65,7 @@ class KomgaMapperTest {
         book.setAddedOn(Instant.now());
 
         // When: Converting to DTO
-        KomgaBookDto dto = mapper.toKomgaBookDto(book, true);
+        KomgaBookDto dto = mapper.toKomgaBookDto(book);
 
         // Then: Should not throw NPE and pageCount should default to 0
         assertThat(dto).isNotNull();
@@ -70,7 +88,7 @@ class KomgaMapperTest {
         book.setAddedOn(Instant.now());
 
         // When: Converting to DTO
-        KomgaBookDto dto = mapper.toKomgaBookDto(book, true);
+        KomgaBookDto dto = mapper.toKomgaBookDto(book);
 
         // Then: Should not throw NPE and pageCount should default to 0
         assertThat(dto).isNotNull();
@@ -99,7 +117,7 @@ class KomgaMapperTest {
         book.setAddedOn(Instant.now());
 
         // When: Converting to DTO
-        KomgaBookDto dto = mapper.toKomgaBookDto(book, true);
+        KomgaBookDto dto = mapper.toKomgaBookDto(book);
 
         // Then: Should use the actual pageCount
         assertThat(dto).isNotNull();
