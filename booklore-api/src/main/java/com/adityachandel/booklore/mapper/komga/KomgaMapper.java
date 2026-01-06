@@ -1,17 +1,26 @@
 package com.adityachandel.booklore.mapper.komga;
 
+import com.adityachandel.booklore.context.KomgaCleanContext;
+import com.adityachandel.booklore.model.dto.MagicShelf;
 import com.adityachandel.booklore.model.dto.komga.*;
 import com.adityachandel.booklore.model.entity.*;
+import com.adityachandel.booklore.service.appsettings.AppSettingService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class KomgaMapper {
 
+    private final AppSettingService appSettingService;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final String UNKNOWN_SERIES = "Unknown Series";
 
     public KomgaLibraryDto toKomgaLibraryDto(LibraryEntity library) {
         return KomgaLibraryDto.builder()
@@ -31,9 +40,7 @@ public class KomgaMapper {
         return KomgaBookDto.builder()
                 .id(book.getId().toString())
                 .seriesId(seriesId)
-                .seriesTitle(metadata != null && metadata.getSeriesName() != null 
-                           ? metadata.getSeriesName() 
-                           : "Unknown Series")
+                .seriesTitle(getBookSeriesName(book))
                 .libraryId(book.getLibrary().getId().toString())
                 .name(metadata != null ? metadata.getTitle() : book.getFileName())
                 .url("/komga/api/v1/books/" + book.getId())
@@ -118,13 +125,13 @@ public class KomgaMapper {
         }
         
         return KomgaBookMetadataDto.builder()
-                .title(metadata.getTitle())
+                .title(nullIfEmptyInCleanMode(metadata.getTitle(), ""))
                 .titleLock(metadata.getTitleLocked())
-                .summary(metadata.getDescription())
+                .summary(nullIfEmptyInCleanMode(metadata.getDescription(), ""))
                 .summaryLock(metadata.getDescriptionLocked())
-                .number(metadata.getSeriesNumber() != null ? metadata.getSeriesNumber().toString() : null)
+                .number(nullIfEmptyInCleanMode(metadata.getSeriesNumber(), 1.0F).toString())
                 .numberLock(metadata.getSeriesNumberLocked())
-                .numberSort(metadata.getSeriesNumber())
+                .numberSort(nullIfEmptyInCleanMode(metadata.getSeriesNumber(), 1.0F))
                 .numberSortLock(metadata.getSeriesNumberLocked())
                 .releaseDate(metadata.getPublishedDate() != null 
                            ? metadata.getPublishedDate().format(DATE_FORMATTER) 
@@ -158,6 +165,9 @@ public class KomgaMapper {
                         .collect(Collectors.toList());
             }
         }
+        String language = firstMetadata != null ? firstMetadata.getLanguage() : null;
+        String description = firstMetadata != null ? firstMetadata.getDescription() : null;
+        String publisher = firstMetadata != null ? firstMetadata.getPublisher() : null;
         
         return KomgaSeriesMetadataDto.builder()
                 .status("ONGOING")
@@ -166,11 +176,11 @@ public class KomgaMapper {
                 .titleLock(false)
                 .titleSort(seriesName)
                 .titleSortLock(false)
-                .summary(firstMetadata != null ? firstMetadata.getDescription() : null)
+                .summary(nullIfEmptyInCleanMode(description, ""))
                 .summaryLock(false)
-                .publisher(firstMetadata != null ? firstMetadata.getPublisher() : null)
+                .publisher(nullIfEmptyInCleanMode(publisher, ""))
                 .publisherLock(false)
-                .language(firstMetadata != null ? firstMetadata.getLanguage() : "en")
+                .language(nullIfEmptyInCleanMode(language, "en"))
                 .languageLock(false)
                 .genres(genres)
                 .genresLock(false)
@@ -178,6 +188,10 @@ public class KomgaMapper {
                 .tagsLock(false)
                 .totalBookCount(books.size())
                 .totalBookCountLock(false)
+                // not used but required right now by Mihon/komga apps
+                .ageRatingLock(false)
+                .readingDirection("LEFT_TO_RIGHT")
+                .readingDirectionLock(false)
                 .build();
     }
 
@@ -187,7 +201,8 @@ public class KomgaMapper {
         String releaseDate = null;
         String summary = null;
         
-        for (BookEntity book : books) {
+        BookEntity firstBook = books.get(0);
+            for (BookEntity book : books) {
             BookMetadataEntity metadata = book.getMetadata();
             if (metadata != null) {
                 if (metadata.getAuthors() != null) {
@@ -215,17 +230,27 @@ public class KomgaMapper {
         return KomgaBookMetadataAggregationDto.builder()
                 .authors(authors)
                 .tags(new ArrayList<>(allTags))
+                .created(firstBook.getAddedOn())
+                .lastModified(firstBook.getAddedOn())
                 .releaseDate(releaseDate)
-                .summary(summary)
+                .summary(nullIfEmptyInCleanMode(summary, ""))
+                // summaryNumber is typically empty, but in clean mode should be null to be filtered
+                .summaryNumber(nullIfEmptyInCleanMode(null, ""))
                 .summaryLock(false)
                 .build();
     }
 
-    private String generateSeriesId(BookEntity book) {
+    public String getBookSeriesName(BookEntity book) {
+        boolean groupUnknown = appSettingService.getAppSettings().isKomgaGroupUnknown();
         BookMetadataEntity metadata = book.getMetadata();
-        String seriesName = metadata != null && metadata.getSeriesName() != null 
-                          ? metadata.getSeriesName() 
-                          : "Unknown Series";
+        String bookSeriesName = metadata != null && metadata.getSeriesName() != null 
+            ? metadata.getSeriesName() 
+                : (groupUnknown ? UNKNOWN_SERIES : (metadata.getTitle() != null ? metadata.getTitle() : book.getFileName() ));
+        return bookSeriesName;
+    }
+
+    private String generateSeriesId(BookEntity book) {
+        String seriesName = getBookSeriesName(book);
         Long libraryId = book.getLibrary().getId();
         
         // Generate a pseudo-ID based on library and series name
@@ -274,6 +299,38 @@ public class KomgaMapper {
             return (bytes / (1024 * 1024 * 1024)) + " GB";
         }
     }
+    
+    /**
+     * Helper method to return null for empty strings in clean mode.
+     * In clean mode, we want to allow null values so they can be filtered out.
+     */
+    private String nullIfEmptyInCleanMode(String value, String defaultValue) {
+        if (KomgaCleanContext.isCleanMode()) {
+            return (value != null && !value.isEmpty()) ? value : null;
+        }
+        return value != null ? value : defaultValue;
+    }
+    /**
+     * Helper method to return null for empty integer in clean mode.
+     * In clean mode, we want to allow null values so they can be filtered out.
+     */
+    private Integer nullIfEmptyInCleanMode(Integer value, Integer defaultValue) {
+        if (KomgaCleanContext.isCleanMode()) {
+            return (value != null) ? value : null;
+        }
+        return value != null ? value : defaultValue;
+    }
+
+    /**
+     * Helper method to return null for empty float in clean mode.
+     * In clean mode, we want to allow null values so they can be filtered out.
+     */
+    private Float nullIfEmptyInCleanMode(Float value, Float defaultValue) {
+        if (KomgaCleanContext.isCleanMode()) {
+            return (value != null) ? value : null;
+        }
+        return value != null ? value : defaultValue;
+    }
 
     public KomgaUserDto toKomgaUserDto(OpdsUserV2Entity opdsUser) {
         return KomgaUserDto.builder()
@@ -281,6 +338,21 @@ public class KomgaMapper {
                 .email(opdsUser.getUsername() + "@booklore.local")
                 .roles(List.of("USER"))
                 .sharedAllLibraries(true)
+                .build();
+    }
+    
+    public KomgaCollectionDto toKomgaCollectionDto(MagicShelf magicShelf, int seriesCount) {
+        String now = Instant.now()
+                .atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        
+        return KomgaCollectionDto.builder()
+                .id(magicShelf.getId().toString())
+                .name(magicShelf.getName())
+                .ordered(false)
+                .seriesCount(seriesCount)
+                .createdDate(now)
+                .lastModifiedDate(now)
                 .build();
     }
 }

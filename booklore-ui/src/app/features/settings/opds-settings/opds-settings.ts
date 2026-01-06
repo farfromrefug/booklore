@@ -45,6 +45,7 @@ export class OpdsSettings implements OnInit, OnDestroy {
   komgaEndpoint = `${API_CONFIG.BASE_URL}/komga`;
   opdsEnabled = false;
   komgaApiEnabled = false;
+  komgaGroupUnknown = true;
 
   private opdsService = inject(OpdsService);
   private confirmationService = inject(ConfirmationService);
@@ -105,7 +106,8 @@ export class OpdsSettings implements OnInit, OnDestroy {
       .subscribe(settings => {
         this.opdsEnabled = settings.opdsServerEnabled ?? false;
         this.komgaApiEnabled = settings.komgaApiEnabled ?? false;
-        if (this.opdsEnabled) {
+        this.komgaGroupUnknown = settings.komgaGroupUnknown ?? true;
+        if (this.opdsEnabled || this.komgaApiEnabled) {
           this.loadUsers();
         } else {
           this.loading = false;
@@ -185,7 +187,7 @@ export class OpdsSettings implements OnInit, OnDestroy {
 
   toggleOpdsServer(): void {
     this.saveSetting(AppSettingKey.OPDS_SERVER_ENABLED, this.opdsEnabled);
-    if (this.opdsEnabled) {
+    if (this.opdsEnabled || this.komgaApiEnabled) {
       this.loadUsers();
     } else {
       this.users = [];
@@ -194,11 +196,30 @@ export class OpdsSettings implements OnInit, OnDestroy {
 
   toggleKomgaApi(): void {
     this.saveKomgaSetting(AppSettingKey.KOMGA_API_ENABLED, this.komgaApiEnabled);
+    if (this.opdsEnabled || this.komgaApiEnabled) {
+      this.loadUsers();
+    } else {
+      this.users = [];
+    }
   }
 
   copyKomgaEndpoint(): void {
     navigator.clipboard.writeText(this.komgaEndpoint).then(() => {
       this.showMessage('success', 'Copied', 'Komga API endpoint copied to clipboard');
+    });
+  }
+
+  toggleKomgaGroupUnknown(): void {
+    this.appSettingsService.saveSettings([{key: AppSettingKey.KOMGA_GROUP_UNKNOWN, newValue: this.komgaGroupUnknown}]).subscribe({
+      next: () => {
+        const successMessage = (this.komgaGroupUnknown === true)
+          ? 'Books without series will be grouped under "Unknown Series".'
+          : 'Books without series will appear as individual series.';
+        this.showMessage('success', 'Settings Saved', successMessage);
+      },
+      error: () => {
+        this.showMessage('error', 'Error', 'There was an error saving the settings.');
+      }
     });
   }
 

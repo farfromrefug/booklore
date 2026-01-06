@@ -19,6 +19,7 @@ public class AppSettings {
     private boolean similarBookRecommendation;
     private boolean opdsServerEnabled;
     private boolean komgaApiEnabled;
+    private boolean komgaGroupUnknown;
     private String uploadPattern;
     private Integer cbxCacheSizeInMb;
     private Integer pdfCacheSizeInMb;
@@ -26,6 +27,7 @@ public class AppSettings {
     private boolean remoteAuthEnabled;
     private boolean metadataDownloadOnBookdrop;
     private boolean oidcEnabled;
+    private boolean telemetryEnabled;
     private OidcProviderDetails oidcProviderDetails;
     private OidcAutoProvisionDetails oidcAutoProvisionDetails;
     private MetadataProviderSettings metadataProviderSettings;
