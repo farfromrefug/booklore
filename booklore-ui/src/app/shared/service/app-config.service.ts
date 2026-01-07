@@ -352,7 +352,7 @@ export class AppConfigService {
       this.saveAppState(state);
       this.applyThemeMode(state.themeMode ?? 'dark');
       this.onPresetChange();
-    }, {allowSignalWrites: true});
+    });
   }
 
   private loadAppState(): AppState {

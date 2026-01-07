@@ -1,47 +1,50 @@
 package com.adityachandel.booklore.mapper.komga;
 
-import com.adityachandel.booklore.service.appsettings.AppSettingService;
 import com.adityachandel.booklore.context.KomgaCleanContext;
 import com.adityachandel.booklore.model.dto.komga.KomgaBookDto;
 import com.adityachandel.booklore.model.dto.komga.KomgaSeriesDto;
+import com.adityachandel.booklore.model.dto.settings.AppSettings;
 import com.adityachandel.booklore.model.entity.BookEntity;
 import com.adityachandel.booklore.model.entity.BookMetadataEntity;
 import com.adityachandel.booklore.model.entity.LibraryEntity;
 import com.adityachandel.booklore.model.enums.BookFileType;
+import com.adityachandel.booklore.service.appsettings.AppSettingService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.MockitoAnnotations;
-import org.mockito.InjectMocks;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class KomgaMapperTest {
 
-    @Mock private AppSettingService appSettingService;
+    @Mock
+    private AppSettingService appSettingService;
 
     @InjectMocks
     private KomgaMapper mapper;
-
-    @BeforeEach
-    void setUp() {
-        // Initialize mapper after mocks are created
-        MockitoAnnotations.openMocks(this);
-        mapper = new KomgaMapper(appSettingService);
-    }
     
     @AfterEach
     void cleanup() {
         // Always clean up the context after each test
         KomgaCleanContext.clear();
+    }
+    
+    @BeforeEach
+    void setUp() {
+        // Mock app settings for all tests
+        AppSettings appSettings = new AppSettings();
+        appSettings.setKomgaGroupUnknown(true);
+        when(appSettingService.getAppSettings()).thenReturn(appSettings);
     }
 
     @Test
