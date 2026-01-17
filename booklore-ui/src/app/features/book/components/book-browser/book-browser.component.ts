@@ -5,7 +5,7 @@ import {PageTitleService} from "../../../../shared/service/page-title.service";
 import {LibraryService} from '../../service/library.service';
 import {BookService} from '../../service/book.service';
 import {catchError, debounceTime, filter, map, switchMap, take} from 'rxjs/operators';
-import {BehaviorSubject, combineLatest, finalize, forkJoin, Observable, of, Subject} from 'rxjs';
+import {BehaviorSubject, combineLatest, finalize, Observable, of, Subject} from 'rxjs';
 import {ShelfService} from '../../service/shelf.service';
 import {DynamicDialogRef} from 'primeng/dynamicdialog';
 import {Library} from '../../model/library.model';
@@ -51,6 +51,7 @@ import {TaskHelperService} from '../../../settings/task-management/task-helper.s
 import {FilterLabelHelper} from './filter-label.helper';
 import {LoadingService} from '../../../../core/services/loading.service';
 import {BookNavigationService} from '../../service/book-navigation.service';
+import {BookCardOverlayPreferenceService} from './book-card-overlay-preference.service';
 
 export enum EntityType {
   LIBRARY = 'Library',
@@ -123,13 +124,14 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
   private pageTitle = inject(PageTitleService);
   private loadingService = inject(LoadingService);
   private bookNavigationService = inject(BookNavigationService);
+  protected bookCardOverlayPreferenceService = inject(BookCardOverlayPreferenceService);
 
   bookState$: Observable<BookState> | undefined;
   entity$: Observable<Library | Shelf | MagicShelf | null> | undefined;
   entityType$: Observable<EntityType> | undefined;
   searchTerm$ = new BehaviorSubject<string>('');
   parsedFilters: Record<string, string[]> = {};
-  selectedFilter = new BehaviorSubject<Record<string, any> | null>(null);
+  selectedFilter = new BehaviorSubject<Record<string, string[]> | null>(null);
   selectedFilterMode = new BehaviorSubject<BookFilterMode>('and');
   protected resetFilterSubject = new Subject<void>();
   entity: Library | Shelf | MagicShelf | null = null;
@@ -273,7 +275,7 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
       this.activatedRoute.paramMap,
       this.activatedRoute.queryParamMap,
       this.userService.userState$.pipe(filter(u => !!u?.user && u.loaded))
-    ]).subscribe(([paramMap, queryParamMap, user]) => {
+    ]).subscribe(([_, queryParamMap, user]) => {
 
       const viewParam = queryParamMap.get(QUERY_PARAMS.VIEW);
       const sortParam = queryParamMap.get(QUERY_PARAMS.SORT);
@@ -328,7 +330,7 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
 
       this.entityViewPreferences = user.user?.userSettings?.entityViewPreferences;
       const globalPrefs = this.entityViewPreferences?.global;
-      const currentEntityTypeStr = this.entityType ? this.entityType.toString().toUpperCase() : undefined;
+      const currentEntityTypeStr = this.entityType ? this.entityType.toString().toUpperCase().replaceAll(' ', '_') : undefined;
       this.coverScalePreferenceService.initScaleValue(this.coverScalePreferenceService.scaleFactor);
       this.columnPreferenceService.initPreferences(user.user?.userSettings?.tableColumnPreference);
       this.visibleColumns = this.columnPreferenceService.visibleColumns;
@@ -380,7 +382,7 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
         this.applySortOption(this.bookSorter.selectedSort);
       }
 
-      const queryParams: any = {
+      const queryParams: Record<string, string | number | null | undefined> = {
         [QUERY_PARAMS.VIEW]: this.currentViewMode,
         [QUERY_PARAMS.SORT]: this.bookSorter.selectedSort.field,
         [QUERY_PARAMS.DIRECTION]: this.bookSorter.selectedSort.direction === SortDirection.ASCENDING ? SORT_DIRECTION.ASCENDING : SORT_DIRECTION.DESCENDING,
@@ -466,7 +468,7 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
     this.coverScalePreferenceService.setScale(this.coverScalePreferenceService.scaleFactor);
   }
 
-  onVisibleColumnsChange(selected: any[]) {
+  onVisibleColumnsChange(selected: { field: string; header: string }[]) {
     const allFields = this.bookTableComponent.allColumns.map(col => col.field);
     this.visibleColumns = selected.sort(
       (a, b) => allFields.indexOf(a.field) - allFields.indexOf(b.field)
@@ -557,8 +559,6 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
           .subscribe(() => {
             this.selectedBooks.clear();
           });
-      },
-      reject: () => {
       }
     });
   }
@@ -787,8 +787,8 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
     return (entity as Library).paths !== undefined;
   }
 
-  private isMagicShelf(entity: any): entity is MagicShelf {
-    return entity && 'filterJson' in entity;
+  private isMagicShelf(entity: Library | Shelf | MagicShelf | null): entity is MagicShelf {
+    return !!entity && 'filterJson' in entity;
   }
 
   private getEntityInfoFromRoute(): Observable<{ entityId: number; entityType: EntityType }> {
@@ -833,8 +833,16 @@ export class BookBrowserComponent implements OnInit, AfterViewInit {
       case EntityType.LIBRARY:
         return this.fetchBooks(book => book.libraryId === entityId);
       case EntityType.SHELF:
-        return this.fetchBooks(book =>
-          book.shelves?.some(shelf => shelf.id === entityId) ?? false
+        return this.shelfService.getBooksOnShelf(entityId).pipe(
+          map(books => {
+            const sortedBooks = this.sortService.applySort(books, this.bookSorter.selectedSort!);
+            return {
+              books: sortedBooks,
+              loaded: true,
+              error: null
+            };
+          }),
+          switchMap(bookState => this.applyBookFilters(bookState))
         );
       case EntityType.MAGIC_SHELF:
         return this.fetchBooksMagicShelfBooks(entityId);

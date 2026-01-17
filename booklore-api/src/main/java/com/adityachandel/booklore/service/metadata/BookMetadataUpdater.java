@@ -85,8 +85,9 @@ public class BookMetadataUpdater {
         }
 
         MetadataPersistenceSettings settings = appSettingService.getAppSettings().getMetadataPersistenceSettings();
-        boolean writeToFile = settings.isSaveToOriginalFile();
-        BookFileType bookType = bookEntity.getBookType();
+        MetadataPersistenceSettings.SaveToOriginalFile writeToFile = settings.getSaveToOriginalFile();
+        var primaryFile = bookEntity.getPrimaryBookFile();
+        BookFileType bookType = primaryFile.getBookType();
 
         boolean hasValueChangesForFileWrite = MetadataChangeDetector.hasValueChangesForFileWrite(newMetadata, metadata, clearFlags);
 
@@ -108,7 +109,7 @@ public class BookMetadataUpdater {
             log.warn("Failed to calculate metadata match score for book ID {}: {}", bookId, e.getMessage());
         }
 
-        if ((writeToFile && hasValueChangesForFileWrite) || thumbnailRequiresUpdate) {
+        if ((writeToFile.isAnyFormatEnabled() && hasValueChangesForFileWrite) || thumbnailRequiresUpdate) {
             metadataWriterFactory.getWriter(bookType).ifPresent(writer -> {
                 try {
                     String thumbnailUrl = updateThumbnail ? newMetadata.getThumbnailUrl() : null;
@@ -117,10 +118,10 @@ public class BookMetadataUpdater {
                         thumbnailUrl = null;
                     }
                     File file = new File(bookEntity.getFullFilePath().toUri());
-                    writer.writeMetadataToFile(file, metadata, thumbnailUrl, clearFlags);
+                    writer.saveMetadataToFile(file, metadata, thumbnailUrl, clearFlags);
                     String newHash = FileFingerprint.generateHash(bookEntity.getFullFilePath());
                     bookEntity.setMetadataForWriteUpdatedAt(Instant.now());
-                    bookEntity.setCurrentHash(newHash);
+                    primaryFile.setCurrentHash(newHash);
                     bookRepository.save(bookEntity);
                 } catch (Exception e) {
                     log.warn("Failed to write metadata for book ID {}: {}", bookId, e.getMessage());
@@ -134,8 +135,9 @@ public class BookMetadataUpdater {
                 BookEntity book = metadata.getBook();
                 FileMoveResult result = fileMoveService.moveSingleFile(book);
                 if (result.isMoved()) {
-                    book.setFileName(result.getNewFileName());
-                    book.setFileSubPath(result.getNewFileSubPath());
+                    var bookPrimaryFile = book.getPrimaryBookFile();
+                    bookPrimaryFile.setFileName(result.getNewFileName());
+                    bookPrimaryFile.setFileSubPath(result.getNewFileSubPath());
                 }
             } catch (Exception e) {
                 log.warn("Failed to move files for book ID {} after metadata update: {}", bookId, e.getMessage());
@@ -170,6 +172,8 @@ public class BookMetadataUpdater {
         handleFieldUpdate(e.getHardcoverReviewCountLocked(), clear.isHardcoverReviewCount(), m.getHardcoverReviewCount(), e::setHardcoverReviewCount, e::getHardcoverReviewCount, replaceMode);
         handleFieldUpdate(e.getLubimyczytacIdLocked(), clear.isLubimyczytacId(), m.getLubimyczytacId(), v -> e.setLubimyczytacId(nullIfBlank(v)), e::getLubimyczytacId, replaceMode);
         handleFieldUpdate(e.getLubimyczytacRatingLocked(), clear.isLubimyczytacRating(), m.getLubimyczytacRating(), e::setLubimyczytacRating, e::getLubimyczytacRating, replaceMode);
+        handleFieldUpdate(e.getRanobedbIdLocked(), clear.isRanobedbId(), m.getRanobedbId(), v -> e.setRanobedbId(nullIfBlank(v)), e::getRanobedbId, replaceMode);
+        handleFieldUpdate(e.getRanobedbRatingLocked(), clear.isRanobedbRating(), m.getRanobedbRating(), e::setRanobedbRating, e::getRanobedbRating, replaceMode);
     }
 
     private <T> void handleFieldUpdate(Boolean locked, boolean shouldClear, T newValue, Consumer<T> setter, Supplier<T> getter, MetadataReplaceMode mode) {
@@ -382,6 +386,8 @@ public class BookMetadataUpdater {
                 Pair.of(m.getComicvineIdLocked(), e::setComicvineIdLocked),
                 Pair.of(m.getHardcoverIdLocked(), e::setHardcoverIdLocked),
                 Pair.of(m.getHardcoverBookIdLocked(), e::setHardcoverBookIdLocked),
+                Pair.of(m.getLubimyczytacIdLocked(), e::setLubimyczytacIdLocked),
+                Pair.of(m.getLubimyczytacRatingLocked(), e::setLubimyczytacRatingLocked),
                 Pair.of(m.getGoogleIdLocked(), e::setGoogleIdLocked),
                 Pair.of(m.getPageCountLocked(), e::setPageCountLocked),
                 Pair.of(m.getLanguageLocked(), e::setLanguageLocked),
@@ -391,6 +397,8 @@ public class BookMetadataUpdater {
                 Pair.of(m.getGoodreadsReviewCountLocked(), e::setGoodreadsReviewCountLocked),
                 Pair.of(m.getHardcoverRatingLocked(), e::setHardcoverRatingLocked),
                 Pair.of(m.getHardcoverReviewCountLocked(), e::setHardcoverReviewCountLocked),
+                Pair.of(m.getRanobedbIdLocked(), e::setRanobedbIdLocked),
+                Pair.of(m.getRanobedbRatingLocked(), e::setRanobedbRatingLocked),
                 Pair.of(m.getCoverLocked(), e::setCoverLocked),
                 Pair.of(m.getAuthorsLocked(), e::setAuthorsLocked),
                 Pair.of(m.getCategoriesLocked(), e::setCategoriesLocked),

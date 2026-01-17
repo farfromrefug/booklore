@@ -28,6 +28,8 @@ export interface Filter<T extends FilterValue = FilterValue> {
 }
 
 export type FilterType =
+  | 'library'
+  | 'shelf'
   | 'author'
   | 'category'
   | 'series'
@@ -45,6 +47,7 @@ export type FilterType =
   | 'pageCount'
   | 'amazonRating'
   | 'goodreadsRating'
+  | 'ranobedbRating'
   | 'hardcoverRating';
 
 export const ratingRanges = [
@@ -125,7 +128,7 @@ function extractPublishedYearFilter(book: Book): { id: string; name: string }[] 
 }
 
 function getShelfStatusFilter(book: Book): { id: string; name: string }[] {
-  const isShelved = book.shelves?.length! > 0;
+  const isShelved = (book.shelves?.length ?? 0) > 0;
   return [{id: isShelved ? 'shelved' : 'unshelved', name: isShelved ? 'Shelved' : 'Unshelved'}];
 }
 
@@ -204,6 +207,8 @@ export class BookFilterComponent implements OnInit, OnDestroy {
   private _selectedFilterMode: BookFilterMode = 'and';
   expandedPanels: number[] = [0];
   readonly filterLabels: Record<FilterType, string> = {
+    library: 'Library',
+    shelf: 'Shelf',
     author: 'Author',
     category: 'Genre',
     series: 'Series',
@@ -222,6 +227,7 @@ export class BookFilterComponent implements OnInit, OnDestroy {
     amazonRating: 'Amazon Rating',
     goodreadsRating: 'Goodreads Rating',
     hardcoverRating: 'Hardcover Rating',
+    ranobedbRating: 'Ranobedb Rating',
   };
 
   private destroy$ = new Subject<void>();
@@ -247,6 +253,14 @@ export class BookFilterComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         this.filterStreams = {
+          library: this.getFilterStream(
+            (book) => (book.libraryId ? [{id: book.libraryId, name: book.libraryName}] : []),
+            'id', 'name'
+          ),
+          shelf: this.getFilterStream(
+            (book) => (book.shelves ? book.shelves.map(s => ({id: s.id, name: s.name})) : []),
+            'id', 'name'
+          ),
           author: this.getFilterStream(
             (book: Book) => Array.isArray(book.metadata?.authors) ? book.metadata.authors.map(name => ({id: name, name})) : [],
             'id', 'name'
@@ -285,10 +299,11 @@ export class BookFilterComponent implements OnInit, OnDestroy {
           bookType: this.getFilterStream(getBookTypeFilter, 'id', 'name'),
           shelfStatus: this.getFilterStream(getShelfStatusFilter, 'id', 'name'),
           fileSize: this.getFilterStream((book: Book) => getFileSizeRangeFilters(book.fileSizeKb), 'id', 'name', 'sortIndex'),
-          pageCount: this.getFilterStream((book: Book) => getPageCountRangeFilters(book.metadata?.pageCount!), 'id', 'name', 'sortIndex'),
-          amazonRating: this.getFilterStream((book: Book) => getRatingRangeFilters(book.metadata?.amazonRating!), 'id', 'name', 'sortIndex'),
-          goodreadsRating: this.getFilterStream((book: Book) => getRatingRangeFilters(book.metadata?.goodreadsRating!), 'id', 'name', 'sortIndex'),
-          hardcoverRating: this.getFilterStream((book: Book) => getRatingRangeFilters(book.metadata?.hardcoverRating!), 'id', 'name', 'sortIndex'),
+          pageCount: this.getFilterStream((book: Book) => getPageCountRangeFilters(book.metadata?.pageCount ?? undefined), 'id', 'name', 'sortIndex'),
+          amazonRating: this.getFilterStream((book: Book) => getRatingRangeFilters(book.metadata?.amazonRating ?? undefined), 'id', 'name', 'sortIndex'),
+          goodreadsRating: this.getFilterStream((book: Book) => getRatingRangeFilters(book.metadata?.goodreadsRating ?? undefined), 'id', 'name', 'sortIndex'),
+          hardcoverRating: this.getFilterStream((book: Book) => getRatingRangeFilters(book.metadata?.hardcoverRating ?? undefined), 'id', 'name', 'sortIndex'),
+          ranobedbRating: this.getFilterStream((book: Book) => getRatingRangeFilters(book.metadata?.ranobedbRating ?? undefined), 'id', 'name', 'sortIndex'),
         };
 
         this.filterTypes = Object.keys(this.filterStreams) as FilterType[];
@@ -469,18 +484,18 @@ export class BookFilterComponent implements OnInit, OnDestroy {
 
   trackByFilter(_: number, filter: Filter<FilterValue>): unknown {
     const value = filter.value as { id?: unknown } | unknown;
-    return (typeof value === 'object' && value !== null && 'id' in value) ? (value as any).id : filter.value;
+    return (typeof value === 'object' && value !== null && 'id' in value) ? (value as {id: unknown}).id : filter.value;
   }
 
   getFilterValueId(filter: Filter<FilterValue>): unknown {
     const value = filter.value as { id?: unknown } | unknown;
-    return (typeof value === 'object' && value !== null && 'id' in value) ? (value as any).id : filter.value;
+    return (typeof value === 'object' && value !== null && 'id' in value) ? (value as {id: unknown}).id : filter.value;
   }
 
   getFilterValueDisplay(filter: Filter<FilterValue>): string {
     const value = filter.value as { name?: string } | string | unknown;
     if (typeof value === 'object' && value !== null && 'name' in value) {
-      return String((value as any).name ?? '');
+      return String((value as {name: string}).name ?? '');
     }
     return String(value ?? '');
   }
