@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 import javax.imageio.ImageIO;
 import javax.xml.XMLConstants;
@@ -32,6 +30,8 @@ import org.xml.sax.SAXException;
 
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZFile;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
@@ -62,8 +62,30 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
 
     // CBZ path (ZIP)
     if (lowerName.endsWith(".cbz")) {
-      try (ZipFile zipFile = new ZipFile(file)) {
-        ZipEntry entry = findComicInfoEntry(zipFile);
+      // Try fast path first (reading from central directory)
+      try (ZipFile zipFile = ZipFile.builder()
+              .setFile(file)
+              .setUseUnicodeExtraFields(true)
+              .setIgnoreLocalFileHeader(true)
+              .get()) {
+        ZipArchiveEntry entry = findComicInfoEntry(zipFile);
+        if (entry != null) {
+          try (InputStream is = zipFile.getInputStream(entry)) {
+            Document document = buildSecureDocument(is);
+            return mapDocumentToMetadata(document, baseName);
+          }
+        }
+      } catch (Exception e) {
+        log.debug("Fast path failed for CBZ metadata extraction: {}", e.getMessage());
+      }
+      
+      // Slow path fallback (scanning local file headers)
+      try (ZipFile zipFile = ZipFile.builder()
+              .setFile(file)
+              .setUseUnicodeExtraFields(true)
+              .setIgnoreLocalFileHeader(false)
+              .get()) {
+        ZipArchiveEntry entry = findComicInfoEntry(zipFile);
         if (entry == null) {
           return BookMetadata.builder().title(baseName).build();
         }
@@ -122,10 +144,10 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
         return BookMetadata.builder().title(baseName).build();
   }
 
-  private ZipEntry findComicInfoEntry(ZipFile zipFile) {
-    Enumeration<? extends ZipEntry> entries = zipFile.entries();
+  private ZipArchiveEntry findComicInfoEntry(ZipFile zipFile) {
+    Enumeration<ZipArchiveEntry> entries = zipFile.getEntries();
     while (entries.hasMoreElements()) {
-      ZipEntry entry = entries.nextElement();
+      ZipArchiveEntry entry = entries.nextElement();
       String name = entry.getName();
       if (isComicInfoName(name)) {
         return entry;
@@ -384,9 +406,13 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
 
     // CBZ path
     if (lowerName.endsWith(".cbz")) {
-      try (ZipFile zipFile = new ZipFile(file)) {
-        // Try front cover via ComicInfo
-        ZipEntry coverEntry = findFrontCoverEntry(zipFile);
+      // Try fast path first
+      try (ZipFile zipFile = ZipFile.builder()
+              .setFile(file)
+              .setUseUnicodeExtraFields(true)
+              .setIgnoreLocalFileHeader(true)
+              .get()) {
+        ZipArchiveEntry coverEntry = findFrontCoverEntry(zipFile);
         if (coverEntry != null) {
           try (InputStream is = zipFile.getInputStream(coverEntry)) {
             byte[] bytes = is.readAllBytes();
@@ -394,11 +420,41 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
           }
         }
         // Fallback: iterate images alphabetically until a decodable one is found
-        ZipEntry firstImage = findFirstAlphabeticalImageEntry(zipFile);
+        ZipArchiveEntry firstImage = findFirstAlphabeticalImageEntry(zipFile);
         if (firstImage != null) {
           // Build a sorted list and iterate for decodable formats
-          java.util.List<ZipEntry> images = listZipImageEntries(zipFile);
-          for (ZipEntry e : images) {
+          java.util.List<ZipArchiveEntry> images = listZipImageEntries(zipFile);
+          for (ZipArchiveEntry e : images) {
+            try (InputStream is = zipFile.getInputStream(e)) {
+              byte[] bytes = is.readAllBytes();
+              if (canDecode(bytes)) return bytes;
+            }
+          }
+        }
+      } catch (Exception e) {
+        log.debug("Fast path failed for CBZ cover extraction: {}", e.getMessage());
+      }
+      
+      // Slow path fallback
+      try (ZipFile zipFile = ZipFile.builder()
+              .setFile(file)
+              .setUseUnicodeExtraFields(true)
+              .setIgnoreLocalFileHeader(false)
+              .get()) {
+        // Try front cover via ComicInfo
+        ZipArchiveEntry coverEntry = findFrontCoverEntry(zipFile);
+        if (coverEntry != null) {
+          try (InputStream is = zipFile.getInputStream(coverEntry)) {
+            byte[] bytes = is.readAllBytes();
+            if (canDecode(bytes)) return bytes;
+          }
+        }
+        // Fallback: iterate images alphabetically until a decodable one is found
+        ZipArchiveEntry firstImage = findFirstAlphabeticalImageEntry(zipFile);
+        if (firstImage != null) {
+          // Build a sorted list and iterate for decodable formats
+          java.util.List<ZipArchiveEntry> images = listZipImageEntries(zipFile);
+          for (ZipArchiveEntry e : images) {
             try (InputStream is = zipFile.getInputStream(e)) {
               byte[] bytes = is.readAllBytes();
               if (canDecode(bytes)) return bytes;
@@ -534,22 +590,22 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
     }
   }
 
-  private ZipEntry findFrontCoverEntry(ZipFile zipFile) {
-    ZipEntry comicInfoEntry = findComicInfoEntry(zipFile);
+  private ZipArchiveEntry findFrontCoverEntry(ZipFile zipFile) {
+    ZipArchiveEntry comicInfoEntry = findComicInfoEntry(zipFile);
     if (comicInfoEntry != null) {
       try (InputStream is = zipFile.getInputStream(comicInfoEntry)) {
         Document document = buildSecureDocument(is);
         String imageName = findFrontCoverImageName(document);
         if (imageName != null) {
-          ZipEntry byName = zipFile.getEntry(imageName);
+          ZipArchiveEntry byName = zipFile.getEntry(imageName);
           if (byName != null) {
             return byName;
           }
           // also try base-name match for archives with directories or odd encodings
           String imageBase = baseName(imageName);
-          java.util.Enumeration<? extends ZipEntry> it = zipFile.entries();
+          Enumeration<ZipArchiveEntry> it = zipFile.getEntries();
           while (it.hasMoreElements()) {
-            ZipEntry e = it.nextElement();
+            ZipArchiveEntry e = it.nextElement();
             if (!e.isDirectory() && isImageEntry(e.getName())) {
               if (baseName(e.getName()).equalsIgnoreCase(imageBase)) {
                 return e;
@@ -558,12 +614,12 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
           }
           try {
             int index = Integer.parseInt(imageName);
-            ZipEntry byIndex = findImageEntryByIndex(zipFile, index);
+            ZipArchiveEntry byIndex = findImageEntryByIndex(zipFile, index);
             if (byIndex != null) {
               return byIndex;
             }
             if (index > 0) {
-              ZipEntry offByOne = findImageEntryByIndex(zipFile, index - 1);
+              ZipArchiveEntry offByOne = findImageEntryByIndex(zipFile, index - 1);
               if (offByOne != null) return offByOne;
             }
           } catch (NumberFormatException ignore) {
@@ -575,16 +631,16 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
       }
     }
     // Heuristic filenames before generic fallback
-    ZipEntry heuristic = findHeuristicCover(zipFile);
+    ZipArchiveEntry heuristic = findHeuristicCover(zipFile);
     if (heuristic != null) return heuristic;
     return findFirstAlphabeticalImageEntry(zipFile);
   }
 
-  private ZipEntry findImageEntryByIndex(ZipFile zipFile, int index) {
-    Enumeration<? extends ZipEntry> entries = zipFile.entries();
+  private ZipArchiveEntry findImageEntryByIndex(ZipFile zipFile, int index) {
+    Enumeration<ZipArchiveEntry> entries = zipFile.getEntries();
     int count = 0;
     while (entries.hasMoreElements()) {
-      ZipEntry entry = entries.nextElement();
+      ZipArchiveEntry entry = entries.nextElement();
       if (!entry.isDirectory() && isImageEntry(entry.getName())) {
         if (count == index) {
           return entry;
@@ -748,11 +804,11 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
     return images.getFirst();
   }
 
-  private ZipEntry findFirstAlphabeticalImageEntry(ZipFile zipFile) {
-    List<ZipEntry> images = new ArrayList<>();
-    Enumeration<? extends ZipEntry> entries = zipFile.entries();
+  private ZipArchiveEntry findFirstAlphabeticalImageEntry(ZipFile zipFile) {
+    List<ZipArchiveEntry> images = new ArrayList<>();
+    Enumeration<ZipArchiveEntry> entries = zipFile.getEntries();
     while (entries.hasMoreElements()) {
-      ZipEntry e = entries.nextElement();
+      ZipArchiveEntry e = entries.nextElement();
       if (!e.isDirectory() && isImageEntry(e.getName())) {
         images.add(e);
       }
@@ -819,11 +875,11 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
     }
   }
 
-  private java.util.List<ZipEntry> listZipImageEntries(ZipFile zipFile) {
-    java.util.List<ZipEntry> images = new java.util.ArrayList<>();
-    java.util.Enumeration<? extends ZipEntry> en = zipFile.entries();
+  private java.util.List<ZipArchiveEntry> listZipImageEntries(ZipFile zipFile) {
+    java.util.List<ZipArchiveEntry> images = new java.util.ArrayList<>();
+    Enumeration<ZipArchiveEntry> en = zipFile.getEntries();
     while (en.hasMoreElements()) {
-      ZipEntry e = en.nextElement();
+      ZipArchiveEntry e = en.nextElement();
       if (!e.isDirectory() && isImageEntry(e.getName())) images.add(e);
     }
     images.sort((a, b) -> naturalCompare(a.getName(), b.getName()));
@@ -883,9 +939,9 @@ public class CbxMetadataExtractor implements FileMetadataExtractor {
     return Integer.compare(n1 - i, n2 - j);
   }
 
-  private ZipEntry findHeuristicCover(ZipFile zipFile) {
-    java.util.List<ZipEntry> images = listZipImageEntries(zipFile);
-    for (ZipEntry e : images) {
+  private ZipArchiveEntry findHeuristicCover(ZipFile zipFile) {
+    java.util.List<ZipArchiveEntry> images = listZipImageEntries(zipFile);
+    for (ZipArchiveEntry e : images) {
       if (likelyCoverName(baseName(e.getName()))) return e;
     }
     return null;
