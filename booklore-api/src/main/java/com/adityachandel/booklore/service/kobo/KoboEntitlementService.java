@@ -17,6 +17,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Collections;
@@ -85,7 +86,7 @@ public class KoboEntitlementService {
                     .collect(Collectors.toList());
         }
         return books.stream()
-                .filter(bookEntity -> bookEntity.getBookType() == BookFileType.EPUB)
+                .filter(bookEntity -> bookEntity.getPrimaryBookFile().getBookType() == BookFileType.EPUB)
                 .map(book -> ChangedProductMetadata.builder()
                         .changedProductMetadata(BookEntitlementContainer.builder()
                                 .bookEntitlement(buildBookEntitlement(book, false))
@@ -208,12 +209,21 @@ public class KoboEntitlementService {
                 .orElse(Collections.emptyList());
 
         KoboBookMetadata.Series series = null;
-        if (metadata.getSeriesName() != null) {
+        if (metadata.getSeriesName() != null && !metadata.getSeriesName().isBlank()) {
             series = KoboBookMetadata.Series.builder()
                     .id("series_" + metadata.getSeriesName().hashCode())
                     .name(metadata.getSeriesName())
-                    .number(metadata.getSeriesNumber() != null ? metadata.getSeriesNumber().toString() : "1")
+                    .number(metadata.getSeriesNumber() != null 
+                        ? BigDecimal.valueOf(metadata.getSeriesNumber()).stripTrailingZeros().toPlainString() 
+                        : "1")
                     .numberFloat(metadata.getSeriesNumber() != null ? metadata.getSeriesNumber().doubleValue() : 1.0)
+                    .build();
+        } else {
+            series = KoboBookMetadata.Series.builder()
+                    .id("")
+                    .name("")
+                    .number("")
+                    .numberFloat(0.0)
                     .build();
         }
 
@@ -222,8 +232,9 @@ public class KoboEntitlementService {
         KoboBookFormat bookFormat = KoboBookFormat.EPUB3;
         KoboSettings koboSettings = appSettingService.getAppSettings().getKoboSettings();
 
-        boolean isEpubFile = book.getBookType() == BookFileType.EPUB;
-        boolean isCbxFile = book.getBookType() == BookFileType.CBX;
+        var primaryFile = book.getPrimaryBookFile();
+        boolean isEpubFile = primaryFile.getBookType() == BookFileType.EPUB;
+        boolean isCbxFile = primaryFile.getBookType() == BookFileType.CBX;
 
         if (koboSettings != null) {
             if (isEpubFile && koboSettings.isConvertToKepub()) {
@@ -259,7 +270,7 @@ public class KoboEntitlementService {
                         KoboBookMetadata.DownloadUrl.builder()
                                 .url(downloadUrl)
                                 .format(bookFormat.toString())
-                                .size(book.getFileSizeKb() * 1024)
+                                .size(primaryFile.getFileSizeKb() * 1024)
                                 .build()
                 ))
                 .build();

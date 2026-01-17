@@ -62,15 +62,15 @@ public class EpubProcessor extends AbstractFileProcessor implements BookFileProc
             byte[] coverData = epubMetadataExtractor.extractCover(epubFile);
 
             if (coverData == null) {
-                log.warn("No cover image found in EPUB '{}'", bookEntity.getFileName());
+                log.warn("No cover image found in EPUB '{}'", bookEntity.getPrimaryBookFile().getFileName());
                 return false;
             }
 
             boolean saved;
             try (ByteArrayInputStream bais = new ByteArrayInputStream(coverData)) {
-                BufferedImage originalImage = ImageIO.read(bais);
+                BufferedImage originalImage = FileService.readImage(bais);
                 if (originalImage == null) {
-                    log.warn("Cover image found but could not be decoded (possibly SVG or unsupported format) in EPUB '{}'", bookEntity.getFileName());
+                    log.warn("Failed to decode cover image for EPUB '{}'", bookEntity.getPrimaryBookFile().getFileName());
                     return false;
                 }
                 saved = fileService.saveCoverImages(originalImage, bookEntity.getId());
@@ -80,7 +80,7 @@ public class EpubProcessor extends AbstractFileProcessor implements BookFileProc
             return saved;
 
         } catch (Exception e) {
-            log.error("Error generating cover for EPUB '{}': {}", bookEntity.getFileName(), e.getMessage(), e);
+            log.error("Error generating cover for EPUB '{}': {}", bookEntity.getPrimaryBookFile().getFileName(), e.getMessage(), e);
             return false;
         }
     }
@@ -123,6 +123,8 @@ public class EpubProcessor extends AbstractFileProcessor implements BookFileProc
         metadata.setHardcoverReviewCount(epubMetadata.getHardcoverReviewCount());
         metadata.setGoogleId(truncate(epubMetadata.getGoogleId(), 100));
         metadata.setComicvineId(truncate(epubMetadata.getComicvineId(), 100));
+        metadata.setRanobedbId(truncate(epubMetadata.getRanobedbId(), 100));
+        metadata.setRanobedbRating(epubMetadata.getRanobedbRating());
 
         bookCreatorService.addAuthorsToBook(epubMetadata.getAuthors(), bookEntity);
 
