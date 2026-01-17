@@ -38,7 +38,7 @@ export class LibraryShelfMenuService {
             label: 'Edit Library',
             icon: 'pi pi-pen-to-square',
             command: () => {
-              this.dialogLauncherService.openLibraryEditDialog(<number>entity?.id);
+              this.dialogLauncherService.openLibraryEditDialog((entity?.id as number));
             }
           },
           {
@@ -77,7 +77,7 @@ export class LibraryShelfMenuService {
             label: 'Custom Fetch Metadata',
             icon: 'pi pi-sync',
             command: () => {
-              this.dialogLauncherService.openLibraryMetadataFetchDialog(<number>entity?.id);
+              this.dialogLauncherService.openLibraryMetadataFetchDialog((entity?.id as number));
             }
           },
           {
@@ -135,16 +135,22 @@ export class LibraryShelfMenuService {
     ];
   }
 
-  initializeShelfMenuItems(entity: Shelf | null): MenuItem[] {
+  initializeShelfMenuItems(entity: any): MenuItem[] {
+    const user = this.userService.getCurrentUser();
+    const isOwner = entity?.userId === user?.id;
+    const isPublicShelf = entity?.publicShelf ?? false;
+    const disableOptions = !isOwner;
+
     return [
       {
-        label: 'Options',
+        label: (isPublicShelf ? 'Public Shelf - ' : '') + (disableOptions ? 'Read only' : 'Options'),
         items: [
           {
             label: 'Edit Shelf',
             icon: 'pi pi-pen-to-square',
+            disabled: disableOptions,
             command: () => {
-              this.dialogLauncherService.openShelfEditDialog(<number>entity?.id);
+              this.dialogLauncherService.openShelfEditDialog((entity?.id as number));
             }
           },
           {
@@ -153,6 +159,7 @@ export class LibraryShelfMenuService {
           {
             label: 'Delete Shelf',
             icon: 'pi pi-trash',
+            disabled: disableOptions,
             command: () => {
               this.confirmationService.confirm({
                 message: `Are you sure you want to delete shelf: ${entity?.name}?`,
@@ -197,7 +204,7 @@ export class LibraryShelfMenuService {
             icon: 'pi pi-pen-to-square',
             disabled: disableOptions,
             command: () => {
-              this.dialogLauncherService.openMagicShelfEditDialog(<number>entity?.id);
+              this.dialogLauncherService.openMagicShelfEditDialog((entity?.id as number));
             }
           },
           {

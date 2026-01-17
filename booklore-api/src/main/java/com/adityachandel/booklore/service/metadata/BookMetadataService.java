@@ -29,12 +29,15 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.File;
 import java.lang.reflect.Method;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -52,39 +55,23 @@ public class BookMetadataService {
     private final Map<MetadataProvider, BookParser> parserMap;
     private final CbxMetadataExtractor cbxMetadataExtractor;
     private final MetadataClearFlagsMapper metadataClearFlagsMapper;
-    private final BookCoverService bookCoverService;
+    private final com.adityachandel.booklore.service.book.BookCreatorService bookCreatorService;
 
-    public void generateCustomCover(long bookId) {
-        bookCoverService.generateCustomCover(bookId);
-    }
 
-    public List<BookMetadata> getProspectiveMetadataListForBookId(long bookId, FetchMetadataRequest request) {
+    public Flux<BookMetadata> getProspectiveMetadataListForBookId(long bookId, FetchMetadataRequest request) {
         BookEntity bookEntity = bookRepository.findById(bookId).orElseThrow(() -> ApiError.BOOK_NOT_FOUND.createException(bookId));
         Book book = bookMapper.toBook(bookEntity);
-        List<List<BookMetadata>> allMetadata = request.getProviders().stream()
-                .map(provider -> CompletableFuture.supplyAsync(() -> fetchMetadataListFromAProvider(provider, book, request))
-                        .exceptionally(e -> {
-                            log.error("Error fetching metadata from provider: {}", provider, e);
-                            return List.of();
-                        }))
-                .toList()
-                .stream()
-                .map(CompletableFuture::join)
-                .filter(Objects::nonNull)
-                .toList();
 
-        List<BookMetadata> interleavedMetadata = new ArrayList<>();
-        int maxSize = allMetadata.stream().mapToInt(List::size).max().orElse(0);
-
-        for (int i = 0; i < maxSize; i++) {
-            for (List<BookMetadata> metadataList : allMetadata) {
-                if (i < metadataList.size()) {
-                    interleavedMetadata.add(metadataList.get(i));
-                }
-            }
-        }
-
-        return interleavedMetadata;
+        return Flux.fromIterable(request.getProviders())
+                .flatMap(provider ->
+                    Mono.fromCallable(() -> fetchMetadataListFromAProvider(provider, book, request))
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .flatMapMany(Flux::fromIterable)
+                            .onErrorResume(e -> {
+                                log.error("Error fetching metadata from provider: {}", provider, e);
+                                return Flux.empty();
+                            })
+                );
     }
 
     public List<BookMetadata> fetchMetadataListFromAProvider(MetadataProvider provider, Book book, FetchMetadataRequest request) {
@@ -137,37 +124,11 @@ public class BookMetadataService {
         return books.stream().map(b -> bookMetadataMapper.toBookMetadata(b.getMetadata(), false)).collect(Collectors.toList());
     }
 
-    @Transactional
-    public BookMetadata updateCoverImageFromFile(Long bookId, MultipartFile file) {
-        return bookCoverService.updateCoverImageFromFile(bookId, file);
-    }
-
-    @Transactional
-    public BookMetadata updateCoverImageFromUrl(Long bookId, String url) {
-        return bookCoverService.updateCoverImageFromUrl(bookId, url);
-    }
-
-    public void updateCoverImageFromFileForBooks(Set<Long> bookIds, MultipartFile file) {
-        bookCoverService.updateCoverImageFromFileForBooks(bookIds, file);
-    }
-
-    public void regenerateCover(long bookId) {
-        bookCoverService.regenerateCover(bookId);
-    }
-
-    public void regenerateCoversForBooks(Set<Long> bookIds) {
-        bookCoverService.regenerateCoversForBooks(bookIds);
-    }
-
-    public void regenerateCovers() {
-        bookCoverService.regenerateCovers();
-    }
-
     public BookMetadata getComicInfoMetadata(long bookId) {
         log.info("Extracting ComicInfo metadata for book ID: {}", bookId);
         BookEntity bookEntity = bookRepository.findById(bookId).orElseThrow(() -> ApiError.BOOK_NOT_FOUND.createException(bookId));
-        if (bookEntity.getBookType() != BookFileType.CBX) {
-            log.info("Unsupported operation for file type: {}", bookEntity.getBookType().name());
+        if (bookEntity.getPrimaryBookFile().getBookType() != BookFileType.CBX) {
+            log.info("Unsupported operation for file type: {}", bookEntity.getPrimaryBookFile().getBookType().name());
             return null;
         }
         return cbxMetadataExtractor.extractMetadata(new File(FileUtils.getBookFullPath(bookEntity)));
@@ -207,5 +168,113 @@ public class BookMetadataService {
             bookMetadataUpdater.setBookMetadata(context);
             notificationService.sendMessage(Topic.BOOK_UPDATE, bookMapper.toBook(book));
         }
+    }
+
+    /**
+     * Reload metadata from CBX file for a single book.
+     * Extracts metadata from ComicInfo.xml and updates the book entity.
+     */
+    @Transactional
+    public void reloadMetadataFromFile(long bookId) {
+        BookEntity bookEntity = bookRepository.findById(bookId).orElseThrow(() -> ApiError.BOOK_NOT_FOUND.createException(bookId));
+        
+        if (bookEntity.getPrimaryBookFile().getBookType() != BookFileType.CBX) {
+            throw ApiError.INVALID_INPUT.createException("Only CBX files support metadata reload from file");
+        }
+        
+        log.info("Reloading metadata from file for book ID: {}", bookId);
+        
+        try {
+            BookMetadata extracted = cbxMetadataExtractor.extractMetadata(new File(FileUtils.getBookFullPath(bookEntity)));
+            if (extracted != null) {
+                BookMetadataEntity metadata = bookEntity.getMetadata();
+                
+                // Update metadata fields if not locked
+                if (!isFieldLocked(metadata.getTitleLocked())) {
+                    metadata.setTitle(truncate(extracted.getTitle(), 1000));
+                }
+                if (!isFieldLocked(metadata.getDescriptionLocked())) {
+                    metadata.setDescription(truncate(extracted.getDescription(), 5000));
+                }
+                if (!isFieldLocked(metadata.getPublisherLocked())) {
+                    metadata.setPublisher(truncate(extracted.getPublisher(), 1000));
+                }
+                if (!isFieldLocked(metadata.getPublishedDateLocked())) {
+                    metadata.setPublishedDate(extracted.getPublishedDate());
+                }
+                if (!isFieldLocked(metadata.getSeriesNameLocked())) {
+                    metadata.setSeriesName(truncate(extracted.getSeriesName(), 1000));
+                }
+                if (!isFieldLocked(metadata.getSeriesNumberLocked())) {
+                    metadata.setSeriesNumber(extracted.getSeriesNumber());
+                }
+                if (!isFieldLocked(metadata.getSeriesTotalLocked())) {
+                    metadata.setSeriesTotal(extracted.getSeriesTotal());
+                }
+                if (!isFieldLocked(metadata.getPageCountLocked())) {
+                    metadata.setPageCount(extracted.getPageCount());
+                }
+                if (!isFieldLocked(metadata.getLanguageLocked())) {
+                    metadata.setLanguage(truncate(extracted.getLanguage(), 1000));
+                }
+                
+                bookRepository.save(bookEntity);
+                
+                // Handle authors and categories separately after save
+                // Clear and reload only if not locked and new data is available
+                if (!isFieldLocked(metadata.getAuthorsLocked()) && extracted.getAuthors() != null && !extracted.getAuthors().isEmpty()) {
+                    metadata.getAuthors().clear();
+                    bookRepository.save(bookEntity);
+                    bookCreatorService.addAuthorsToBook(extracted.getAuthors(), bookEntity);
+                }
+                
+                if (!isFieldLocked(metadata.getCategoriesLocked()) && extracted.getCategories() != null && !extracted.getCategories().isEmpty()) {
+                    metadata.getCategories().clear();
+                    bookRepository.save(bookEntity);
+                    bookCreatorService.addCategoriesToBook(extracted.getCategories(), bookEntity);
+                }
+                
+                bookRepository.save(bookEntity);
+                notificationService.sendMessage(Topic.BOOK_UPDATE, bookMapper.toBook(bookEntity));
+                log.info("Successfully reloaded metadata from file for book ID: {}", bookId);
+            } else {
+                log.warn("No metadata could be extracted from file for book ID: {}", bookId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to reload metadata from file for book ID {}: {}", bookId, e.getMessage(), e);
+            throw ApiError.INVALID_INPUT.createException("Failed to reload metadata: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Reload metadata from CBX files for multiple books.
+     */
+    public void reloadMetadataFromFileForBooks(Set<Long> bookIds) {
+        List<BookEntity> books = bookQueryService.findAllWithMetadataByIds(bookIds).stream()
+                .filter(book -> book.getPrimaryBookFile().getBookType() == BookFileType.CBX)
+                .toList();
+        
+        log.info("Starting metadata reload from files for {} books", books.size());
+        
+        for (BookEntity book : books) {
+            try {
+                reloadMetadataFromFile(book.getId());
+            } catch (Exception e) {
+                log.error("Failed to reload metadata for book ID {}: {}", book.getId(), e.getMessage());
+            }
+        }
+        
+        log.info("Completed metadata reload from files");
+    }
+    
+    private boolean isFieldLocked(Boolean locked) {
+        return locked != null && locked;
+    }
+    
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 }
