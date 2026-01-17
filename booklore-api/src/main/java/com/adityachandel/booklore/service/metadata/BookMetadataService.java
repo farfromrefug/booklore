@@ -53,6 +53,7 @@ public class BookMetadataService {
     private final CbxMetadataExtractor cbxMetadataExtractor;
     private final MetadataClearFlagsMapper metadataClearFlagsMapper;
     private final BookCoverService bookCoverService;
+    private final com.adityachandel.booklore.service.book.BookCreatorService bookCreatorService;
 
     public void generateCustomCover(long bookId) {
         bookCoverService.generateCustomCover(bookId);
@@ -259,27 +260,21 @@ public class BookMetadataService {
                 
                 bookRepository.save(bookEntity);
                 
-                // Handle authors and categories separately after save to avoid constraint issues
-                if (!isFieldLocked(metadata.getAuthorsLocked()) && extracted.getAuthors() != null) {
+                // Handle authors and categories separately after save
+                // Clear and reload only if not locked and new data is available
+                if (!isFieldLocked(metadata.getAuthorsLocked()) && extracted.getAuthors() != null && !extracted.getAuthors().isEmpty()) {
                     metadata.getAuthors().clear();
                     bookRepository.save(bookEntity);
-                    // Add authors through creator service which handles the relationships
-                    for (String authorName : extracted.getAuthors()) {
-                        // This will be handled by the BookCreatorService in a proper implementation
-                        // For now, we'll skip this to avoid complexity
-                    }
+                    bookCreatorService.addAuthorsToBook(extracted.getAuthors(), bookEntity);
                 }
                 
-                if (!isFieldLocked(metadata.getCategoriesLocked()) && extracted.getCategories() != null) {
+                if (!isFieldLocked(metadata.getCategoriesLocked()) && extracted.getCategories() != null && !extracted.getCategories().isEmpty()) {
                     metadata.getCategories().clear();
                     bookRepository.save(bookEntity);
-                    // Add categories through creator service which handles the relationships
-                    for (String categoryName : extracted.getCategories()) {
-                        // This will be handled by the BookCreatorService in a proper implementation
-                        // For now, we'll skip this to avoid complexity
-                    }
+                    bookCreatorService.addCategoriesToBook(extracted.getCategories(), bookEntity);
                 }
                 
+                bookRepository.save(bookEntity);
                 notificationService.sendMessage(Topic.BOOK_UPDATE, bookMapper.toBook(bookEntity));
                 log.info("Successfully reloaded metadata from file for book ID: {}", bookId);
             } else {
