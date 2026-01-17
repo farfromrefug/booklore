@@ -194,6 +194,27 @@ public class MetadataController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Reload metadata from CBX file", description = "Reload metadata from the CBX file for a specific book. Requires metadata edit permission or admin.")
+    @ApiResponse(responseCode = "204", description = "Metadata reloaded successfully")
+    @PostMapping("/{bookId}/reload-metadata")
+    @PreAuthorize("@securityUtil.canEditMetadata() or @securityUtil.isAdmin()")
+    @CheckBookAccess(bookIdParam = "bookId")
+    public ResponseEntity<Void> reloadMetadata(
+            @Parameter(description = "ID of the book") @PathVariable Long bookId) {
+        bookMetadataService.reloadMetadataFromFile(bookId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Reload metadata from CBX files for selected books", description = "Reload metadata from CBX files for a list of books. Requires metadata edit permission or admin.")
+    @ApiResponse(responseCode = "204", description = "Metadata reload started successfully")
+    @PostMapping("/bulk-reload-metadata")
+    @PreAuthorize("@securityUtil.canBulkEditMetadata() or @securityUtil.isAdmin()")
+    public ResponseEntity<Void> reloadMetadataForBooks(
+            @Parameter(description = "List of book IDs") @Validated @RequestBody BulkBookIdsRequest request) {
+        bookMetadataService.reloadMetadataFromFileForBooks(request.getBookIds());
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Get cover images for a book", description = "Fetch cover images for a book.")
     @ApiResponse(responseCode = "200", description = "Cover images returned successfully")
     @PostMapping("/{bookId}/metadata/covers")
