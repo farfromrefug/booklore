@@ -199,6 +199,7 @@ export class SeriesPageComponent implements OnDestroy {
           () => this.bulkEditMetadata(),
           () => this.multiBookEditMetadata(),
           () => this.regenerateCoversForSelected(),
+          () => this.reloadMetadataForSelected(),
           userState.user
         );
         this.bulkReadActionsMenuItems = this.bookMenuService.getBulkReadActionsMenu(this.selectedBooks, this.user());
@@ -444,6 +445,38 @@ export class SeriesPageComponent implements OnDestroy {
               severity: 'error',
               summary: 'Failed',
               detail: 'Could not start cover regeneration.',
+              life: 3000
+            });
+          }
+        });
+      }
+    });
+  }
+
+  reloadMetadataForSelected(): void {
+    if (!this.selectedBooks || this.selectedBooks.size === 0) return;
+    const count = this.selectedBooks.size;
+    this.confirmationService.confirm({
+      message: `Are you sure you want to reload metadata from files for ${count} book(s)? This will extract metadata from ComicInfo.xml in CBZ files.`,
+      header: 'Confirm Metadata Reload',
+      icon: 'pi pi-refresh',
+      acceptLabel: 'Yes',
+      rejectLabel: 'No',
+      accept: () => {
+        this.bookService.reloadMetadataForBooks(Array.from(this.selectedBooks)).subscribe({
+          next: () => {
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Metadata Reload Started',
+              detail: `Reloading metadata for ${count} book(s). Changes will appear shortly.`,
+              life: 3000
+            });
+          },
+          error: () => {
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Failed',
+              detail: 'Could not start metadata reload.',
               life: 3000
             });
           }

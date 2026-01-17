@@ -558,6 +558,14 @@ export class BookService {
     return this.http.post<void>(`${this.url}/bulk-regenerate-covers`, {bookIds});
   }
 
+  reloadMetadata(bookId: number): Observable<void> {
+    return this.http.post<void>(`${this.url}/${bookId}/reload-metadata`, {});
+  }
+
+  reloadMetadataForBooks(bookIds: number[]): Observable<void> {
+    return this.http.post<void>(`${this.url}/bulk-reload-metadata`, {bookIds});
+  }
+
   bulkUploadCover(bookIds: number[], file: File): Observable<void> {
     const formData = new FormData();
     formData.append('file', file);

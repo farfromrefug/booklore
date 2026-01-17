@@ -330,6 +330,24 @@ export class BookCardComponent implements OnInit, OnChanges, OnDestroy {
             },
           },
           {
+            label: 'Reload Metadata from File',
+            icon: 'pi pi-refresh',
+            command: () => {
+              this.bookService.reloadMetadata(this.book.id).subscribe({
+                next: () => this.messageService.add({
+                  severity: 'success',
+                  summary: 'Success',
+                  detail: 'Metadata reload started'
+                }),
+                error: () => this.messageService.add({
+                  severity: 'error',
+                  summary: 'Error',
+                  detail: 'Failed to reload metadata'
+                })
+              });
+            }
+          },
+          {
             label: 'Regenerate Cover (File)',
             icon: 'pi pi-image',
             command: () => {
