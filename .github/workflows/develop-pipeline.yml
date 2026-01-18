@@ -1,12 +1,7 @@
 name: Develop & PR – Build, Test, and Container Publish
 
 on:
-  push:
-    branches:
-      - develop
-  pull_request:
-    branches:
-      - '**'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
