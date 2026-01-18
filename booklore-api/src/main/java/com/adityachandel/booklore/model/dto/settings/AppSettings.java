@@ -35,4 +35,5 @@ public class AppSettings {
     private MetadataPublicReviewsSettings metadataPublicReviewsSettings;
     private KoboSettings koboSettings;
     private CoverCroppingSettings coverCroppingSettings;
+    private MetadataProviderSpecificFields metadataProviderSpecificFields;
 }

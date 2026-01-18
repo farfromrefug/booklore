@@ -1,4 +1,4 @@
-import { MetadataRefreshOptions } from '../../features/metadata/model/request/metadata-refresh-options.model';
+import {MetadataRefreshOptions} from '../../features/metadata/model/request/metadata-refresh-options.model';
 
 export interface MetadataMatchWeights {
   title: number;
@@ -160,6 +160,26 @@ export interface AppSettings {
   coverCroppingSettings: CoverCroppingSettings;
   metadataDownloadOnBookdrop: boolean;
   telemetryEnabled: boolean;
+  metadataProviderSpecificFields: MetadataProviderSpecificFields;
+}
+
+export interface MetadataProviderSpecificFields {
+  asin: boolean;
+  amazonRating: boolean;
+  amazonReviewCount: boolean;
+  googleId: boolean;
+  goodreadsId: boolean;
+  goodreadsRating: boolean;
+  goodreadsReviewCount: boolean;
+  hardcoverId: boolean;
+  hardcoverBookId: boolean;
+  hardcoverRating: boolean;
+  hardcoverReviewCount: boolean;
+  comicvineId: boolean;
+  lubimyczytacId: boolean;
+  lubimyczytacRating: boolean;
+  ranobedbId: boolean;
+  ranobedbRating: boolean;
 }
 
 export enum AppSettingKey {
@@ -183,4 +203,5 @@ export enum AppSettingKey {
   KOBO_SETTINGS = 'KOBO_SETTINGS',
   COVER_CROPPING_SETTINGS = 'COVER_CROPPING_SETTINGS',
   TELEMETRY_ENABLED = 'TELEMETRY_ENABLED',
+  METADATA_PROVIDER_SPECIFIC_FIELDS = 'METADATA_PROVIDER_SPECIFIC_FIELDS',
 }
