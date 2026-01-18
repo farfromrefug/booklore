@@ -26,6 +26,7 @@ export class BookMenuService {
     bulkEditMetadata: () => void,
     multiBookEditMetadata: () => void,
     regenerateCovers: () => void,
+    reloadMetadata: () => void,
     user: User | null): MenuItem[] {
 
     const permissions = user?.permissions;
@@ -57,6 +58,11 @@ export class BookMenuService {
         label: 'Multi-Book Metadata Editor',
         icon: 'pi pi-clone',
         command: multiBookEditMetadata
+      });
+      items.push({
+        label: 'Reload Metadata from File',
+        icon: 'pi pi-refresh',
+        command: reloadMetadata
       });
     }
 

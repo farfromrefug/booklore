@@ -37,6 +37,7 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -54,6 +55,7 @@ public class BookMetadataService {
     private final Map<MetadataProvider, BookParser> parserMap;
     private final CbxMetadataExtractor cbxMetadataExtractor;
     private final MetadataClearFlagsMapper metadataClearFlagsMapper;
+    private final com.adityachandel.booklore.service.book.BookCreatorService bookCreatorService;
 
 
     public Flux<BookMetadata> getProspectiveMetadataListForBookId(long bookId, FetchMetadataRequest request) {
@@ -166,5 +168,113 @@ public class BookMetadataService {
             bookMetadataUpdater.setBookMetadata(context);
             notificationService.sendMessage(Topic.BOOK_UPDATE, bookMapper.toBook(book));
         }
+    }
+
+    /**
+     * Reload metadata from CBX file for a single book.
+     * Extracts metadata from ComicInfo.xml and updates the book entity.
+     */
+    @Transactional
+    public void reloadMetadataFromFile(long bookId) {
+        BookEntity bookEntity = bookRepository.findById(bookId).orElseThrow(() -> ApiError.BOOK_NOT_FOUND.createException(bookId));
+        
+        if (bookEntity.getPrimaryBookFile().getBookType() != BookFileType.CBX) {
+            throw ApiError.INVALID_INPUT.createException("Only CBX files support metadata reload from file");
+        }
+        
+        log.info("Reloading metadata from file for book ID: {}", bookId);
+        
+        try {
+            BookMetadata extracted = cbxMetadataExtractor.extractMetadata(new File(FileUtils.getBookFullPath(bookEntity)));
+            if (extracted != null) {
+                BookMetadataEntity metadata = bookEntity.getMetadata();
+                
+                // Update metadata fields if not locked
+                if (!isFieldLocked(metadata.getTitleLocked())) {
+                    metadata.setTitle(truncate(extracted.getTitle(), 1000));
+                }
+                if (!isFieldLocked(metadata.getDescriptionLocked())) {
+                    metadata.setDescription(truncate(extracted.getDescription(), 5000));
+                }
+                if (!isFieldLocked(metadata.getPublisherLocked())) {
+                    metadata.setPublisher(truncate(extracted.getPublisher(), 1000));
+                }
+                if (!isFieldLocked(metadata.getPublishedDateLocked())) {
+                    metadata.setPublishedDate(extracted.getPublishedDate());
+                }
+                if (!isFieldLocked(metadata.getSeriesNameLocked())) {
+                    metadata.setSeriesName(truncate(extracted.getSeriesName(), 1000));
+                }
+                if (!isFieldLocked(metadata.getSeriesNumberLocked())) {
+                    metadata.setSeriesNumber(extracted.getSeriesNumber());
+                }
+                if (!isFieldLocked(metadata.getSeriesTotalLocked())) {
+                    metadata.setSeriesTotal(extracted.getSeriesTotal());
+                }
+                if (!isFieldLocked(metadata.getPageCountLocked())) {
+                    metadata.setPageCount(extracted.getPageCount());
+                }
+                if (!isFieldLocked(metadata.getLanguageLocked())) {
+                    metadata.setLanguage(truncate(extracted.getLanguage(), 1000));
+                }
+                
+                bookRepository.save(bookEntity);
+                
+                // Handle authors and categories separately after save
+                // Clear and reload only if not locked and new data is available
+                if (!isFieldLocked(metadata.getAuthorsLocked()) && extracted.getAuthors() != null && !extracted.getAuthors().isEmpty()) {
+                    metadata.getAuthors().clear();
+                    bookRepository.save(bookEntity);
+                    bookCreatorService.addAuthorsToBook(extracted.getAuthors(), bookEntity);
+                }
+                
+                if (!isFieldLocked(metadata.getCategoriesLocked()) && extracted.getCategories() != null && !extracted.getCategories().isEmpty()) {
+                    metadata.getCategories().clear();
+                    bookRepository.save(bookEntity);
+                    bookCreatorService.addCategoriesToBook(extracted.getCategories(), bookEntity);
+                }
+                
+                bookRepository.save(bookEntity);
+                notificationService.sendMessage(Topic.BOOK_UPDATE, bookMapper.toBook(bookEntity));
+                log.info("Successfully reloaded metadata from file for book ID: {}", bookId);
+            } else {
+                log.warn("No metadata could be extracted from file for book ID: {}", bookId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to reload metadata from file for book ID {}: {}", bookId, e.getMessage(), e);
+            throw ApiError.INVALID_INPUT.createException("Failed to reload metadata: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Reload metadata from CBX files for multiple books.
+     */
+    public void reloadMetadataFromFileForBooks(Set<Long> bookIds) {
+        List<BookEntity> books = bookQueryService.findAllWithMetadataByIds(bookIds).stream()
+                .filter(book -> book.getPrimaryBookFile().getBookType() == BookFileType.CBX)
+                .toList();
+        
+        log.info("Starting metadata reload from files for {} books", books.size());
+        
+        for (BookEntity book : books) {
+            try {
+                reloadMetadataFromFile(book.getId());
+            } catch (Exception e) {
+                log.error("Failed to reload metadata for book ID {}: {}", book.getId(), e.getMessage());
+            }
+        }
+        
+        log.info("Completed metadata reload from files");
+    }
+    
+    private boolean isFieldLocked(Boolean locked) {
+        return locked != null && locked;
+    }
+    
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 }
