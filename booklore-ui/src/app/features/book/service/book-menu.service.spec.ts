@@ -105,7 +105,7 @@ describe('BookMenuService', () => {
         mockUser
       );
 
-      expect(items).toHaveLength(5);
+      expect(items).toHaveLength(6);
       expect(items[0].label).toBe('Auto Fetch Metadata');
       expect(items[0].icon).toBe('pi pi-bolt');
       expect(items[1].label).toBe('Custom Fetch Metadata');
@@ -114,8 +114,8 @@ describe('BookMenuService', () => {
       expect(items[2].icon).toBe('pi pi-table');
       expect(items[3].label).toBe('Multi-Book Metadata Editor');
       expect(items[3].icon).toBe('pi pi-clone');
-      expect(items[4].label).toBe('Regenerate Covers');
-      expect(items[4].icon).toBe('pi pi-image');
+      expect(items[4].label).toBe('Reload Metadata from File');
+      expect(items[4].icon).toBe('pi pi-refresh');
     });
 
     it('should return empty array when user has no permissions', () => {
@@ -177,7 +177,7 @@ describe('BookMenuService', () => {
       expect(multiEdit).toHaveBeenCalledOnce();
 
       items[4].command!({} as any);
-      expect(regenerate).toHaveBeenCalledOnce();
+      expect(reloadMetadata).toHaveBeenCalledOnce();
     });
 
     it('should return only items for granted permissions', () => {
@@ -202,7 +202,7 @@ describe('BookMenuService', () => {
         partialUser
       );
 
-      expect(items).toHaveLength(3);
+      expect(items).toHaveLength(4);
       expect(items[0].label).toBe('Auto Fetch Metadata');
       expect(items[1].label).toBe('Bulk Metadata Editor');
       expect(items[2].label).toBe('Multi-Book Metadata Editor');
