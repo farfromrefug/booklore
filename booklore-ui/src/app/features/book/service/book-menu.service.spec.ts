@@ -93,6 +93,7 @@ describe('BookMenuService', () => {
       const bulkEdit = vi.fn();
       const multiEdit = vi.fn();
       const regenerate = vi.fn();
+      const reloadMetadata = vi.fn();
 
       const items = service.getMetadataMenuItems(
         autoFetch,
@@ -100,6 +101,7 @@ describe('BookMenuService', () => {
         bulkEdit,
         multiEdit,
         regenerate,
+        reloadMetadata,
         mockUser
       );
 
@@ -123,6 +125,7 @@ describe('BookMenuService', () => {
         vi.fn(),
         vi.fn(),
         vi.fn(),
+        vi.fn(),
         mockUserNoPermissions
       );
 
@@ -131,6 +134,7 @@ describe('BookMenuService', () => {
 
     it('should return empty array when user is null', () => {
       const items = service.getMetadataMenuItems(
+        vi.fn(),
         vi.fn(),
         vi.fn(),
         vi.fn(),
@@ -148,6 +152,7 @@ describe('BookMenuService', () => {
       const bulkEdit = vi.fn();
       const multiEdit = vi.fn();
       const regenerate = vi.fn();
+      const reloadMetadata = vi.fn();
 
       const items = service.getMetadataMenuItems(
         autoFetch,
@@ -155,6 +160,7 @@ describe('BookMenuService', () => {
         bulkEdit,
         multiEdit,
         regenerate,
+        reloadMetadata,
         mockUser
       );
 
@@ -187,6 +193,7 @@ describe('BookMenuService', () => {
       } as User;
 
       const items = service.getMetadataMenuItems(
+        vi.fn(),
         vi.fn(),
         vi.fn(),
         vi.fn(),
