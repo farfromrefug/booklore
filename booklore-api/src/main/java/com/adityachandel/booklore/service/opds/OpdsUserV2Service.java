@@ -67,10 +67,6 @@ public class OpdsUserV2Service {
         opdsUserV2Repository.delete(user);
     }
 
-    public OpdsUserV2Entity findByUsername(String username) {
-        return opdsUserV2Repository.findByUsername(username).orElse(null);
-    }
-
     public OpdsUserV2 updateOpdsUser(Long userId, OpdsUserV2UpdateRequest request) {
         BookLoreUser bookLoreUser = authenticationService.getAuthenticatedUser();
         OpdsUserV2Entity user = opdsUserV2Repository.findById(userId)
