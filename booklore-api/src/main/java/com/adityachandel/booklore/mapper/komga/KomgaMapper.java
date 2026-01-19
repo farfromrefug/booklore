@@ -247,10 +247,23 @@ public class KomgaMapper {
         boolean groupUnknown = appSettingService.getAppSettings().isKomgaGroupUnknown();
         BookMetadataEntity metadata = book.getMetadata();
         BookFileEntity bookFile = book.getPrimaryBookFile();
-        String bookSeriesName = metadata != null && metadata.getSeriesName() != null 
-            ? metadata.getSeriesName() 
-                : (groupUnknown ? UNKNOWN_SERIES : (metadata.getTitle() != null ? metadata.getTitle() : bookFile.getFileName() ));
-        return bookSeriesName;
+
+        if (metadata != null) {
+            if (metadata.getSeriesName() != null) {
+                return metadata.getSeriesName();
+            }
+            if (!groupUnknown && metadata.getTitle() != null) {
+                return metadata.getTitle();
+            }
+        } else {
+            // no metadata
+            if (groupUnknown) {
+                return UNKNOWN_SERIES;
+            }
+        }
+
+        // fallback to UNKNOWN_SERIES when grouping unknown, otherwise file name
+        return groupUnknown ? UNKNOWN_SERIES : (bookFile != null ? bookFile.getFileName() : UNKNOWN_SERIES);
     }
 
     public String getUnknownSeriesName() {

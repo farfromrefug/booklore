@@ -252,7 +252,7 @@ public interface BookRepository extends JpaRepository<BookEntity, Long>, JpaSpec
      * Find books by series name for a library when groupUnknown=true.
      * Uses the first bookFile.fileName as fallback when metadata.seriesName is null.
      */
-    @EntityGraph(attributePaths = {"metadata", "shelves", "libraryPath"})
+    @EntityGraph(attributePaths = {"metadata", "shelves", "libraryPath", "bookFiles"})
     @Query("""
             SELECT DISTINCT b FROM BookEntity b
             LEFT JOIN b.metadata m
@@ -282,7 +282,7 @@ public interface BookRepository extends JpaRepository<BookEntity, Long>, JpaSpec
      * Find books by series name for a library when groupUnknown=false.
      * Matches by series name, or by title/filename for books without series.
      */
-    @EntityGraph(attributePaths = {"metadata", "shelves", "libraryPath"})
+    @EntityGraph(attributePaths = {"metadata", "shelves", "libraryPath", "bookFiles"})
     @Query("""
             SELECT b FROM BookEntity b
             LEFT JOIN b.metadata m
