@@ -23,6 +23,7 @@ import org.springframework.security.web.authentication.rememberme.TokenBasedReme
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Komga API", description = "Komga-compatible API endpoints. " +
         "All endpoints support a 'clean' query parameter (default: false). " +
@@ -83,6 +84,20 @@ public class KomgaController {
         return writeJson(result);
     }
 
+    @Operation(summary = "List series (POST with search)")
+    @PostMapping("/v1/series/list")
+    public ResponseEntity<String> getAllSeriesPost(
+            @Parameter(description = "Library ID filter") @RequestParam(required = false, name = "library_id") Long libraryId,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all series without paging") @RequestParam(defaultValue = "false") boolean unpaged,
+            @Parameter(description = "Series search criteria") @RequestBody(required = false) Map<String, Object> searchCriteria) {
+        // For now, we ignore the search criteria and just return all series with pagination
+        // Future enhancement: implement search filtering based on searchCriteria
+        KomgaPageableDto<KomgaSeriesDto> result = komgaService.getAllSeries(libraryId, page, size, unpaged);
+        return writeJson(result);
+    }
+
     @Operation(summary = "Get series details")
     @GetMapping("/v1/series/{seriesId}")
     public ResponseEntity<String> getSeries(
@@ -124,6 +139,20 @@ public class KomgaController {
             @Parameter(description = "Library ID filter") @RequestParam(required = false, name = "library_id") Long libraryId,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size) {
+        KomgaPageableDto<KomgaBookDto> result = komgaService.getAllBooks(libraryId, page, size);
+        return writeJson(result);
+    }
+
+    @Operation(summary = "List books (POST with search)")
+    @PostMapping("/v1/books/list")
+    public ResponseEntity<String> getAllBooksPost(
+            @Parameter(description = "Library ID filter") @RequestParam(required = false, name = "library_id") Long libraryId,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all books without paging") @RequestParam(defaultValue = "false") boolean unpaged,
+            @Parameter(description = "Book search criteria") @RequestBody(required = false) Map<String, Object> searchCriteria) {
+        // For now, we ignore the search criteria and just return all books with pagination
+        // Future enhancement: implement search filtering based on searchCriteria
         KomgaPageableDto<KomgaBookDto> result = komgaService.getAllBooks(libraryId, page, size);
         return writeJson(result);
     }
@@ -274,7 +303,7 @@ public class KomgaController {
     
     @Operation(summary = "List authors")
     @GetMapping("/v1/authors")
-    public ResponseEntity<String> getAuthors(
+    public ResponseEntity<String> getAuthorsV1(
             @Parameter(description = "Search query") @RequestParam(required = false) String search,
             @Parameter(description = "Author role filter") @RequestParam(required = false) String role,
             @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
@@ -294,5 +323,23 @@ public class KomgaController {
         } else {
             return writeJson(result);
         }
+    }
+
+    @Operation(summary = "List authors (v2)")
+    @GetMapping("/v2/authors")
+    public ResponseEntity<String> getAuthorsV2(
+            @Parameter(description = "Search query") @RequestParam(required = false) String search,
+            @Parameter(description = "Author role filter") @RequestParam(required = false) String role,
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId,
+            @Parameter(description = "Series ID filter") @RequestParam(name = "series_id", required = false) String seriesId,
+            @Parameter(description = "Readlist ID filter") @RequestParam(name = "readlist_id", required = false) Long readlistId,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all authors without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
+
+        KomgaPageableDto<KomgaAuthorDto> result = komgaService.getAuthors(search, role, libraryIds, collectionId, seriesId, readlistId, page, size, unpaged);
+        // v2 returns pageable response by default
+        return writeJson(result);
     }
 }
