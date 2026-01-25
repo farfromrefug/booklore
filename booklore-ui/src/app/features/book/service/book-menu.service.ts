@@ -27,6 +27,7 @@ export class BookMenuService {
     multiBookEditMetadata: () => void,
     regenerateCovers: () => void,
     reloadMetadata: () => void,
+    generateCustomCovers: () => void,
     user: User | null): MenuItem[] {
 
     const permissions = user?.permissions;
@@ -71,6 +72,11 @@ export class BookMenuService {
         label: 'Regenerate Covers',
         icon: 'pi pi-image',
         command: regenerateCovers
+      });
+      items.push({
+        label: 'Generate Custom Covers',
+        icon: 'pi pi-palette',
+        command: generateCustomCovers
       });
     }
 

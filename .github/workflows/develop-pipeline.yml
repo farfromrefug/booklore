@@ -3,10 +3,6 @@ name: Develop & PR – Build, Test, and Container Publish
 on:
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   migration-check:
     name: Flyway Migration Check
