@@ -3,11 +3,13 @@ package com.adityachandel.booklore.config.security;
 import com.adityachandel.booklore.config.AppProperties;
 import com.adityachandel.booklore.config.security.filter.*;
 import com.adityachandel.booklore.config.security.service.OpdsUserDetailsService;
+import com.adityachandel.booklore.service.appsettings.AppSettingService;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -20,6 +22,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -37,6 +40,7 @@ public class SecurityConfig {
     private final OpdsUserDetailsService opdsUserDetailsService;
     private final DualJwtAuthenticationFilter dualJwtAuthenticationFilter;
     private final AppProperties appProperties;
+    @Lazy private final AppSettingService appSettingService;
 
     private static final String[] SWAGGER_ENDPOINTS = {
             "/api/v1/swagger-ui.html",
@@ -65,15 +69,18 @@ public class SecurityConfig {
 
     @Bean
     public TokenBasedRememberMeServices komgaRememberMeServices() {
+        // Get remember-me key from AppSettings (with random 12-char default)
+        String rememberMeKey = appSettingService.getAppSettings().getKomgaRememberMeKey();
+        
         // Create remember-me services for Komga API
-        // Using a secret key for token generation - in production, this should be configurable
         TokenBasedRememberMeServices rememberMeServices = new TokenBasedRememberMeServices(
-                "komga-remember-me-key",
+                rememberMeKey,
                 opdsUserDetailsService
         );
         rememberMeServices.setCookieName("komga-remember-me");
         rememberMeServices.setParameter("remember-me");
         rememberMeServices.setTokenValiditySeconds(2592000); // 30 days
+        rememberMeServices.setAuthenticationDetailsSource(new WebAuthenticationDetailsSource());
         return rememberMeServices;
     }
 
