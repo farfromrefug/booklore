@@ -200,9 +200,72 @@ public class KomgaController {
     @Operation(summary = "List collections")
     @GetMapping("/v1/collections")
     public ResponseEntity<String> getCollections(
+            Authentication authentication,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Return all collections without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
-        return writeJson(komgaService.getCollections(page, size, unpaged));
+        
+        // Get OPDS user from authentication
+        Long userId = null;
+        if (authentication != null && authentication.getName() != null) {
+            String username = authentication.getName();
+            var opdsUser = opdsUserV2Service.findByUsername(username);
+            if (opdsUser != null) {
+                userId = opdsUser.getUser().getId();
+            }
+        }
+        
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        
+        return writeJson(komgaService.getCollections(userId, page, size, unpaged));
+    }
+    
+    // ==================== Genres ====================
+    
+    @Operation(summary = "List genres")
+    @GetMapping("/v1/genres")
+    public ResponseEntity<String> getGenres(
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId) {
+        return writeJson(komgaService.getGenres(libraryIds, collectionId));
+    }
+    
+    // ==================== Tags ====================
+    
+    @Operation(summary = "List tags")
+    @GetMapping("/v1/tags")
+    public ResponseEntity<String> getTags(
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId) {
+        return writeJson(komgaService.getTags(libraryIds, collectionId));
+    }
+    
+    // ==================== Publishers ====================
+    
+    @Operation(summary = "List publishers")
+    @GetMapping("/v1/publishers")
+    public ResponseEntity<String> getPublishers(
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId) {
+        return writeJson(komgaService.getPublishers(libraryIds, collectionId));
+    }
+    
+    // ==================== Authors ====================
+    
+    @Operation(summary = "List authors")
+    @GetMapping("/v2/authors")
+    public ResponseEntity<String> getAuthors(
+            @Parameter(description = "Search query") @RequestParam(required = false) String search,
+            @Parameter(description = "Author role filter") @RequestParam(required = false) String role,
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId,
+            @Parameter(description = "Series ID filter") @RequestParam(name = "series_id", required = false) String seriesId,
+            @Parameter(description = "Readlist ID filter") @RequestParam(name = "readlist_id", required = false) Long readlistId,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all authors without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
+        return writeJson(komgaService.getAuthors(search, role, libraryIds, collectionId, seriesId, readlistId, page, size, unpaged));
     }
 }
