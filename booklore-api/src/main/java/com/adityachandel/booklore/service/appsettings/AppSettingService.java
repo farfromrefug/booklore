@@ -145,6 +145,7 @@ public class AppSettingService {
         builder.komgaApiEnabled(Boolean.parseBoolean(settingPersistenceHelper.getOrCreateSetting(AppSettingKey.KOMGA_API_ENABLED, "false")));
         builder.komgaGroupUnknown(Boolean.parseBoolean(settingPersistenceHelper.getOrCreateSetting(AppSettingKey.KOMGA_GROUP_UNKNOWN, "true")));
         builder.komgaRememberMeKey(settingPersistenceHelper.getOrCreateSetting(AppSettingKey.KOMGA_REMEMBER_ME_KEY, RandomStringUtils.secure().nextAlphanumeric(12)));
+        builder.komgaRememberMeDuration(Integer.parseInt(settingPersistenceHelper.getOrCreateSetting(AppSettingKey.KOMGA_REMEMBER_ME_DURATION, "31556952")));
         builder.telemetryEnabled(Boolean.parseBoolean(settingPersistenceHelper.getOrCreateSetting(AppSettingKey.TELEMETRY_ENABLED, "true")));
         builder.pdfCacheSizeInMb(Integer.parseInt(settingPersistenceHelper.getOrCreateSetting(AppSettingKey.PDF_CACHE_SIZE_IN_MB, "5120")));
         builder.maxFileUploadSizeInMb(Integer.parseInt(settingPersistenceHelper.getOrCreateSetting(AppSettingKey.MAX_FILE_UPLOAD_SIZE_IN_MB, "100")));

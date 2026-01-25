@@ -138,7 +138,7 @@ public class KomgaMapper {
                 .titleLock(metadata.getTitleLocked())
                 .summary(nullIfEmptyInCleanMode(metadata.getDescription(), ""))
                 .summaryLock(metadata.getDescriptionLocked())
-                .number(nullIfEmptyInCleanMode(metadata.getSeriesNumber(), 1.0F).toString())
+                .number(nullIfEmptyInCleanModeToString(metadata.getSeriesNumber(), 1.0F))
                 .numberLock(metadata.getSeriesNumberLocked())
                 .numberSort(nullIfEmptyInCleanMode(metadata.getSeriesNumber(), 1.0F))
                 .numberSortLock(metadata.getSeriesNumberLocked())
@@ -363,13 +363,23 @@ public class KomgaMapper {
         return value != null ? value : defaultValue;
     }
 
+    /**
+     * Helper method to return null for empty float in clean mode.
+     * In clean mode, we want to allow null values so they can be filtered out.
+     */
+    private String nullIfEmptyInCleanModeToString(Float value, Float defaultValue) {
+        if (KomgaCleanContext.isCleanMode()) {
+            return (value != null) ? value.toString() : null;
+        }
+        return (value != null ? value : defaultValue).toString();
+    }
+
     public KomgaUserDto toKomgaUserDto(OpdsUserV2Entity opdsUser) {
         return KomgaUserDto.builder()
                 .id(opdsUser.getId().toString())
                 .email(opdsUser.getUsername() + "@booklore.local")
                 .roles(List.of("USER"))
                 .sharedAllLibraries(true)
-                .ageRestriction(null)
                 .build();
     }
     

@@ -22,7 +22,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -69,18 +68,15 @@ public class SecurityConfig {
 
     @Bean
     public TokenBasedRememberMeServices komgaRememberMeServices() {
-        // Get remember-me key from AppSettings (with random 12-char default)
         String rememberMeKey = appSettingService.getAppSettings().getKomgaRememberMeKey();
+        Integer rememberMeDuration = appSettingService.getAppSettings().getKomgaRememberMeDuration();
         
         // Create remember-me services for Komga API
         TokenBasedRememberMeServices rememberMeServices = new TokenBasedRememberMeServices(
                 rememberMeKey,
                 opdsUserDetailsService
         );
-        rememberMeServices.setCookieName("komga-remember-me");
-        rememberMeServices.setParameter("remember-me");
-        rememberMeServices.setTokenValiditySeconds(2592000); // 30 days
-        rememberMeServices.setAuthenticationDetailsSource(new WebAuthenticationDetailsSource());
+        rememberMeServices.setTokenValiditySeconds(rememberMeDuration);
         return rememberMeServices;
     }
 
