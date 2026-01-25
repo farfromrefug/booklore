@@ -4,6 +4,7 @@ import com.adityachandel.booklore.context.KomgaCleanContext;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
+import com.fasterxml.jackson.databind.ser.std.NullSerializer;
 
 import java.util.Collection;
 
@@ -15,9 +16,11 @@ import java.util.Collection;
  * - Empty arrays/collections are excluded
  */
 public class KomgaCleanBeanPropertyWriter extends BeanPropertyWriter {
-    
+
     protected KomgaCleanBeanPropertyWriter(BeanPropertyWriter base) {
         super(base);
+        // we need this to report "null" values when clean mode is NOT used
+        super.assignNullSerializer(NullSerializer.instance);
     }
 
     @Override
@@ -42,7 +45,7 @@ public class KomgaCleanBeanPropertyWriter extends BeanPropertyWriter {
             }
         }
         
-        // Default behavior
+        // Default behavior where everything is returned
         super.serializeAsField(bean, gen, prov);
     }
 }

@@ -2,6 +2,7 @@ package com.adityachandel.booklore.service.komga;
 
 import com.adityachandel.booklore.mapper.komga.KomgaMapper;
 import com.adityachandel.booklore.model.dto.MagicShelf;
+import com.adityachandel.booklore.model.dto.Shelf;
 import com.adityachandel.booklore.model.dto.komga.*;
 import com.adityachandel.booklore.model.entity.BookEntity;
 import com.adityachandel.booklore.model.entity.BookMetadataEntity;
@@ -10,6 +11,7 @@ import com.adityachandel.booklore.model.enums.BookFileType;
 import com.adityachandel.booklore.repository.BookRepository;
 import com.adityachandel.booklore.repository.LibraryRepository;
 import com.adityachandel.booklore.service.MagicShelfService;
+import com.adityachandel.booklore.service.ShelfService;
 import com.adityachandel.booklore.service.appsettings.AppSettingService;
 import com.adityachandel.booklore.service.reader.CbxReaderService;
 import com.adityachandel.booklore.service.reader.PdfReaderService;
@@ -38,6 +40,7 @@ public class KomgaService {
     private final LibraryRepository libraryRepository;
     private final KomgaMapper komgaMapper;
     private final MagicShelfService magicShelfService;
+    private final ShelfService shelfService;
     private final CbxReaderService cbxReaderService;
     private final PdfReaderService pdfReaderService;
     private final AppSettingService appSettingService;
@@ -328,14 +331,18 @@ public class KomgaService {
         
         List<MagicShelf> magicShelves = magicShelfService.getUserShelvesForOpds(userId);
         log.debug("Found {} magic shelves", magicShelves.size());
-        
+        List<Shelf> shelves = shelfService.getShelvesForUser(userId);
+
         // Convert to collection DTOs - for now, series count is 0 since we don't have 
         // the series filter implementation
         List<KomgaCollectionDto> allCollections = magicShelves.stream()
-                .map(shelf -> komgaMapper.toKomgaCollectionDto(shelf, 0))
+                .map(shelf -> komgaMapper.toKomgaCollectionDto(shelf))
                 .sorted(Comparator.comparing(KomgaCollectionDto::getName))
                 .collect(Collectors.toList());
-        
+        allCollections.addAll(shelves.stream()
+                .map(shelf -> komgaMapper.toKomgaCollectionDto(shelf))
+                .sorted(Comparator.comparing(KomgaCollectionDto::getName))
+                .collect(Collectors.toList()));
         log.debug("Mapped to {} collection DTOs", allCollections.size());
         
         // Handle unpaged mode

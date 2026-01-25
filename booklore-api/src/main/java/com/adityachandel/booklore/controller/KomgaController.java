@@ -255,7 +255,7 @@ public class KomgaController {
     // ==================== Authors ====================
     
     @Operation(summary = "List authors")
-    @GetMapping("/v2/authors")
+    @GetMapping("/v1/authors")
     public ResponseEntity<String> getAuthors(
             @Parameter(description = "Search query") @RequestParam(required = false) String search,
             @Parameter(description = "Author role filter") @RequestParam(required = false) String role,
@@ -265,7 +265,16 @@ public class KomgaController {
             @Parameter(description = "Readlist ID filter") @RequestParam(name = "readlist_id", required = false) Long readlistId,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
-            @Parameter(description = "Return all authors without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
-        return writeJson(komgaService.getAuthors(search, role, libraryIds, collectionId, seriesId, readlistId, page, size, unpaged));
+            @Parameter(description = "Return all authors without paging") @RequestParam(defaultValue = "true") boolean unpaged) {
+
+        KomgaPageableDto<KomgaAuthorDto> result = komgaService.getAuthors(search, role, libraryIds, collectionId, seriesId, readlistId, page, size, unpaged);
+        // The komga API does not returned paged content
+        // which can be slow. So for unpaged we return it as Komga API expects it.
+        // otherwise we return it paged.
+        if (unpaged) {
+            return writeJson(result.getContent());
+        } else {
+            return writeJson(result);
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.adityachandel.booklore.mapper.komga;
 
 import com.adityachandel.booklore.context.KomgaCleanContext;
 import com.adityachandel.booklore.model.dto.MagicShelf;
+import com.adityachandel.booklore.model.dto.Shelf;
 import com.adityachandel.booklore.model.dto.komga.*;
 import com.adityachandel.booklore.model.entity.*;
 import com.adityachandel.booklore.model.enums.BookFileType;
@@ -368,10 +369,11 @@ public class KomgaMapper {
                 .email(opdsUser.getUsername() + "@booklore.local")
                 .roles(List.of("USER"))
                 .sharedAllLibraries(true)
+                .ageRestriction(null)
                 .build();
     }
     
-    public KomgaCollectionDto toKomgaCollectionDto(MagicShelf magicShelf, int seriesCount) {
+    public KomgaCollectionDto toKomgaCollectionDto(MagicShelf magicShelf) {
         String now = Instant.now()
                 .atZone(ZoneId.systemDefault())
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
@@ -380,7 +382,24 @@ public class KomgaMapper {
                 .id(magicShelf.getId().toString())
                 .name(magicShelf.getName())
                 .ordered(false)
-                .seriesCount(seriesCount)
+                .filtered(false)
+                .seriesIds(List.of())
+                .createdDate(now)
+                .lastModifiedDate(now)
+                .build();
+    }
+    
+    public KomgaCollectionDto toKomgaCollectionDto(Shelf shelf) {
+        String now = Instant.now()
+                .atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        
+        return KomgaCollectionDto.builder()
+                .id(shelf.getId().toString())
+                .name(shelf.getName())
+                .ordered(false)
+                .filtered(false)
+                .seriesIds(List.of())
                 .createdDate(now)
                 .lastModifiedDate(now)
                 .build();
