@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -17,6 +19,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,6 +38,7 @@ public class KomgaController {
     private final BookService bookService;
     private final OpdsUserV2Service opdsUserV2Service;
     private final KomgaMapper komgaMapper;
+    private final TokenBasedRememberMeServices komgaRememberMeServices;
 
     // Inject the dedicated komga mapper bean
     private final @Qualifier(JacksonConfig.KOMGA_CLEAN_OBJECT_MAPPER) ObjectMapper komgaCleanObjectMapper;
@@ -180,7 +184,11 @@ public class KomgaController {
     
     @Operation(summary = "Get current user details")
     @GetMapping("/v2/users/me")
-    public ResponseEntity<String> getCurrentUser(Authentication authentication) {
+    public ResponseEntity<String> getCurrentUser(
+            Authentication authentication,
+            @Parameter(description = "Enable remember-me cookie") @RequestParam(name = "remember-me", required = false, defaultValue = "false") boolean rememberMe,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         if (authentication == null || authentication.getName() == null) {
             return ResponseEntity.status(401).build();
         }
@@ -190,6 +198,16 @@ public class KomgaController {
         
         if (opdsUser == null) {
             return ResponseEntity.notFound().build();
+        }
+        
+        // If remember-me is requested, create the remember-me cookie
+        if (rememberMe) {
+            try {
+                komgaRememberMeServices.loginSuccess(request, response, authentication);
+                log.debug("Remember-me cookie set for user: {}", username);
+            } catch (Exception e) {
+                log.error("Failed to set remember-me cookie for user: {}", username, e);
+            }
         }
         
         return writeJson(komgaMapper.toKomgaUserDto(opdsUser));

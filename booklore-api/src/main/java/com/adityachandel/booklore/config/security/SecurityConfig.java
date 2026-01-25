@@ -20,6 +20,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -63,6 +64,20 @@ public class SecurityConfig {
     }
 
     @Bean
+    public TokenBasedRememberMeServices komgaRememberMeServices() {
+        // Create remember-me services for Komga API
+        // Using a secret key for token generation - in production, this should be configurable
+        TokenBasedRememberMeServices rememberMeServices = new TokenBasedRememberMeServices(
+                "komga-remember-me-key",
+                opdsUserDetailsService
+        );
+        rememberMeServices.setCookieName("komga-remember-me");
+        rememberMeServices.setParameter("remember-me");
+        rememberMeServices.setTokenValiditySeconds(2592000); // 30 days
+        return rememberMeServices;
+    }
+
+    @Bean
     @Order(1)
     public SecurityFilterChain opdsBasicAuthSecurityChain(HttpSecurity http) throws Exception {
         List<String> unauthenticatedEndpoints = new ArrayList<>(Arrays.asList(COMMON_UNAUTHENTICATED_ENDPOINTS));
@@ -88,7 +103,7 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain komgaBasicAuthSecurityChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain komgaBasicAuthSecurityChain(HttpSecurity http, TokenBasedRememberMeServices komgaRememberMeServices) throws Exception {
         http
                 .securityMatcher("/komga/api/v1/**", "/komga/api/v2/**")
                 .csrf(AbstractHttpConfigurer::disable)
@@ -103,6 +118,9 @@ public class SecurityConfig {
                             response.setHeader("WWW-Authenticate", "Basic realm=\"Booklore Komga API\"");
                             response.getWriter().write("HTTP Status 401 - " + authException.getMessage());
                         })
+                )
+                .rememberMe(rememberMe -> rememberMe
+                        .rememberMeServices(komgaRememberMeServices)
                 );
 
         return http.build();
