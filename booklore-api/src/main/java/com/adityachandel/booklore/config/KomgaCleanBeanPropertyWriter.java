@@ -43,6 +43,17 @@ public class KomgaCleanBeanPropertyWriter extends BeanPropertyWriter {
             if (value instanceof Collection && ((Collection<?>) value).isEmpty()) {
                 return;
             }
+        } else  {
+            String propertyName = getName();
+            // Not in clean mode: ensure Lock properties that are null are emitted as false
+            if (propertyName.endsWith("Lock")) {
+                Object value = get(bean);
+                if (value == null) {
+                    gen.writeFieldName(propertyName);
+                    gen.writeBoolean(false);
+                    return;
+                }
+            }
         }
         
         // Default behavior where everything is returned

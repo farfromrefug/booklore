@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,7 @@ import java.util.Map;
         "resulting in smaller and cleaner JSON payloads.")
 @Slf4j
 @RestController
-@RequestMapping(value = "/komga/api", produces = "application/json")
+@RequestMapping(value = "/komga", produces = "application/json")
 @RequiredArgsConstructor
 public class KomgaController {
 
@@ -55,17 +56,52 @@ public class KomgaController {
         }
     }
 
+    // ==================== Fake SSE for Komelia ====================
+    
+    @Operation(summary = "SSE events")
+    @GetMapping("/sse/v1/events")
+    public SseEmitter getSseEvents() {
+        return new SseEmitter();
+    }
+
+    // ==================== Read lists ====================
+    
+    @Operation(summary = "List all libraries")
+    @GetMapping("/api/v1/readlists")
+    public ResponseEntity<String> getReadlists(
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Search criteria") @RequestBody(required = false) String search,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all books without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
+        KomgaPageableDto<Object> result = komgaService.getReadlists(libraryIds, search, page, size, unpaged);
+        return writeJson(result);
+    }
+
+    // ==================== On Deck ====================
+    
+    @Operation(summary = "List all libraries")
+    @GetMapping("/api/v1/books/ondeck")
+    public ResponseEntity<String> getOnDeckBooks(
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all books without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
+        KomgaPageableDto<Object> result = komgaService.getOnDeckBooks(libraryIds, page, size, unpaged);
+        return writeJson(result);
+    }
+
     // ==================== Libraries ====================
     
     @Operation(summary = "List all libraries")
-    @GetMapping("/v1/libraries")
+    @GetMapping("/api/v1/libraries")
     public ResponseEntity<String> getAllLibraries() {
         List<KomgaLibraryDto> libraries = komgaService.getAllLibraries();
         return writeJson(libraries);
     }
 
     @Operation(summary = "Get library details")
-    @GetMapping("/v1/libraries/{libraryId}")
+    @GetMapping("/api/v1/libraries/{libraryId}")
     public ResponseEntity<String> getLibrary(
             @Parameter(description = "Library ID") @PathVariable Long libraryId) {
         return writeJson(komgaService.getLibraryById(libraryId));
@@ -74,7 +110,29 @@ public class KomgaController {
     // ==================== Series ====================
     
     @Operation(summary = "List series")
-    @GetMapping("/v1/series")
+    @GetMapping("/api/v1/series/new")
+    public ResponseEntity<String> getNewSeries(
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all books without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
+        KomgaPageableDto<KomgaSeriesDto> result = komgaService.getNewSeries(libraryIds, page, size, unpaged);
+        return writeJson(result);
+    }
+    
+    @Operation(summary = "List series")
+    @GetMapping("/api/v1/series/updated")
+    public ResponseEntity<String> getUpdatedSeries(
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
+            @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Return all books without paging") @RequestParam(defaultValue = "false") boolean unpaged) {
+        KomgaPageableDto<KomgaSeriesDto> result = komgaService.getUpdatedSeries(libraryIds, page, size, unpaged);
+        return writeJson(result);
+    }
+    
+    @Operation(summary = "List series")
+    @GetMapping("/api/v1/series")
     public ResponseEntity<String> getAllSeries(
             @Parameter(description = "Library ID filter") @RequestParam(required = false, name = "library_id") Long libraryId,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
@@ -85,28 +143,26 @@ public class KomgaController {
     }
 
     @Operation(summary = "List series (POST with search)")
-    @PostMapping("/v1/series/list")
+    @PostMapping("/api/v1/series/list")
     public ResponseEntity<String> getAllSeriesPost(
             @Parameter(description = "Library ID filter") @RequestParam(required = false, name = "library_id") Long libraryId,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Return all series without paging") @RequestParam(defaultValue = "false") boolean unpaged,
             @Parameter(description = "Series search criteria") @RequestBody(required = false) Map<String, Object> searchCriteria) {
-        // For now, we ignore the search criteria and just return all series with pagination
-        // Future enhancement: implement search filtering based on searchCriteria
         KomgaPageableDto<KomgaSeriesDto> result = komgaService.getAllSeries(libraryId, page, size, unpaged);
         return writeJson(result);
     }
 
     @Operation(summary = "Get series details")
-    @GetMapping("/v1/series/{seriesId}")
+    @GetMapping("/api/v1/series/{seriesId}")
     public ResponseEntity<String> getSeries(
             @Parameter(description = "Series ID") @PathVariable String seriesId)  {
         return writeJson(komgaService.getSeriesById(seriesId));
     }
 
     @Operation(summary = "List books in series")
-    @GetMapping("/v1/series/{seriesId}/books")
+    @GetMapping("/api/v1/series/{seriesId}/books")
     public ResponseEntity<String> getSeriesBooks(
             @Parameter(description = "Series ID") @PathVariable String seriesId,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
@@ -116,7 +172,7 @@ public class KomgaController {
     }
 
     @Operation(summary = "Get series thumbnail")
-    @GetMapping("/v1/series/{seriesId}/thumbnail")
+    @GetMapping("/api/v1/series/{seriesId}/thumbnail")
     public ResponseEntity<Resource> getSeriesThumbnail(
             @Parameter(description = "Series ID") @PathVariable String seriesId) {
         KomgaPageableDto<KomgaBookDto> books = komgaService.getBooksBySeries(seriesId, 0, 1, false);
@@ -134,7 +190,7 @@ public class KomgaController {
     // ==================== Books ====================
     
     @Operation(summary = "List books")
-    @GetMapping("/v1/books")
+    @GetMapping("/api/v1/books")
     public ResponseEntity<String> getAllBooks(
             @Parameter(description = "Library ID filter") @RequestParam(required = false, name = "library_id") Long libraryId,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
@@ -144,7 +200,7 @@ public class KomgaController {
     }
 
     @Operation(summary = "List books (POST with search)")
-    @PostMapping("/v1/books/list")
+    @PostMapping("/api/v1/books/list")
     public ResponseEntity<String> getAllBooksPost(
             @Parameter(description = "Library ID filter") @RequestParam(required = false, name = "library_id") Long libraryId,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
@@ -158,21 +214,29 @@ public class KomgaController {
     }
 
     @Operation(summary = "Get book details")
-    @GetMapping("/v1/books/{bookId}")
+    @GetMapping("/api/v1/books/{bookId}/readlists")
+    public ResponseEntity<String> getBookReadlists(
+            @Parameter(description = "Book ID") @PathVariable Long bookId) {
+        // NO readlist in booklore
+        return writeJson(List.of());
+    }
+
+    @Operation(summary = "Get book details")
+    @GetMapping("/api/v1/books/{bookId}")
     public ResponseEntity<String> getBook(
             @Parameter(description = "Book ID") @PathVariable Long bookId) {
         return writeJson(komgaService.getBookById(bookId));
     }
 
     @Operation(summary = "Get book pages metadata")
-    @GetMapping("/v1/books/{bookId}/pages")
+    @GetMapping("/api/v1/books/{bookId}/pages")
     public ResponseEntity<String> getBookPages(
             @Parameter(description = "Book ID") @PathVariable Long bookId) {
         return writeJson(komgaService.getBookPages(bookId));
     }
 
     @Operation(summary = "Get book page image")
-    @GetMapping("/v1/books/{bookId}/pages/{pageNumber}")
+    @GetMapping("/api/v1/books/{bookId}/pages/{pageNumber}")
     public ResponseEntity<Resource> getBookPage(
             @Parameter(description = "Book ID") @PathVariable Long bookId,
             @Parameter(description = "Page number") @PathVariable Integer pageNumber,
@@ -193,14 +257,14 @@ public class KomgaController {
     }
 
     @Operation(summary = "Download book file")
-    @GetMapping("/v1/books/{bookId}/file")
+    @GetMapping("/api/v1/books/{bookId}/file")
     public ResponseEntity<Resource> downloadBook(
             @Parameter(description = "Book ID") @PathVariable Long bookId) {
         return bookService.downloadBook(bookId);
     }
 
     @Operation(summary = "Get book thumbnail")
-    @GetMapping("/v1/books/{bookId}/thumbnail")
+    @GetMapping("/api/v1/books/{bookId}/thumbnail")
     public ResponseEntity<Resource> getBookThumbnail(
             @Parameter(description = "Book ID") @PathVariable Long bookId) {
         Resource coverImage = bookService.getBookThumbnail(bookId);
@@ -212,7 +276,7 @@ public class KomgaController {
     // ==================== Users ====================
     
     @Operation(summary = "Get current user details")
-    @GetMapping("/v2/users/me")
+    @GetMapping("/api/v2/users/me")
     public ResponseEntity<String> getCurrentUser(
             Authentication authentication,
             @Parameter(description = "Enable remember-me cookie") @RequestParam(name = "remember-me", required = false, defaultValue = "false") boolean rememberMe,
@@ -245,7 +309,7 @@ public class KomgaController {
     // ==================== Collections ====================
     
     @Operation(summary = "List collections")
-    @GetMapping("/v1/collections")
+    @GetMapping("/api/v1/collections")
     public ResponseEntity<String> getCollections(
             Authentication authentication,
             @Parameter(description = "Page number") @RequestParam(defaultValue = "0") int page,
@@ -272,7 +336,7 @@ public class KomgaController {
     // ==================== Genres ====================
     
     @Operation(summary = "List genres")
-    @GetMapping("/v1/genres")
+    @GetMapping("/api/v1/genres")
     public ResponseEntity<String> getGenres(
             @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
             @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId) {
@@ -282,17 +346,25 @@ public class KomgaController {
     // ==================== Tags ====================
     
     @Operation(summary = "List tags")
-    @GetMapping("/v1/tags")
+    @GetMapping("/api/v1/tags")
     public ResponseEntity<String> getTags(
             @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
             @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId) {
         return writeJson(komgaService.getTags(libraryIds, collectionId));
     }
     
+    @Operation(summary = "List series tags")
+    @GetMapping("/api/v1/tags/series")
+    public ResponseEntity<String> getTags(
+            @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) Long libraryId,
+            @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId) {
+        return writeJson(komgaService.getTags(List.of(libraryId), collectionId));
+    }
+    
     // ==================== Publishers ====================
     
     @Operation(summary = "List publishers")
-    @GetMapping("/v1/publishers")
+    @GetMapping("/api/v1/publishers")
     public ResponseEntity<String> getPublishers(
             @Parameter(description = "Library ID filter") @RequestParam(name = "library_id", required = false) List<Long> libraryIds,
             @Parameter(description = "Collection ID filter") @RequestParam(name = "collection_id", required = false) Long collectionId) {
@@ -302,7 +374,7 @@ public class KomgaController {
     // ==================== Authors ====================
     
     @Operation(summary = "List authors")
-    @GetMapping("/v1/authors")
+    @GetMapping("/api/v1/authors")
     public ResponseEntity<String> getAuthorsV1(
             @Parameter(description = "Search query") @RequestParam(required = false) String search,
             @Parameter(description = "Author role filter") @RequestParam(required = false) String role,
@@ -326,7 +398,7 @@ public class KomgaController {
     }
 
     @Operation(summary = "List authors (v2)")
-    @GetMapping("/v2/authors")
+    @GetMapping("/api/v2/authors")
     public ResponseEntity<String> getAuthorsV2(
             @Parameter(description = "Search query") @RequestParam(required = false) String search,
             @Parameter(description = "Author role filter") @RequestParam(required = false) String role,

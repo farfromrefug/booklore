@@ -61,7 +61,7 @@ public class KomgaMapper {
                 .sizeBytes(bookFile.getFileSizeKb() != null ? bookFile.getFileSizeKb() * 1024 : 0L)
                 .size(formatFileSize(bookFile.getFileSizeKb()))
                 .media(toKomgaMediaDto(book, metadata))
-                .metadata(toKomgaBookMetadataDto(metadata))
+                .metadata(toKomgaBookMetadataDto(book, metadata))
                 .deleted(book.getDeleted())
                 .fileHash(bookFile.getCurrentHash())
                 .oneshot(false)
@@ -111,9 +111,17 @@ public class KomgaMapper {
                 .build();
     }
 
-    private KomgaBookMetadataDto toKomgaBookMetadataDto(BookMetadataEntity metadata) {
+    private KomgaBookMetadataDto toKomgaBookMetadataDto(BookEntity book, BookMetadataEntity metadata) {
         if (metadata == null) {
-            return KomgaBookMetadataDto.builder().build();
+            return KomgaBookMetadataDto.builder()
+                .title(nullIfEmptyInCleanMode(null, ""))
+                .summary(nullIfEmptyInCleanMode(null, ""))
+                .number(nullIfEmptyInCleanModeToString(null, 1.0F))
+                .numberSort(nullIfEmptyInCleanMode(null, 1.0F))
+                .isbn(nullIfEmptyInCleanMode(null, ""))
+                .created(book.getAddedOn())
+                .lastModified(book.getAddedOn())
+                .build();
         }
         
         List<KomgaAuthorDto> authors = new ArrayList<>();
@@ -150,8 +158,10 @@ public class KomgaMapper {
                 .authorsLock(metadata.getAuthorsLocked())
                 .tags(tags)
                 .tagsLock(metadata.getTagsLocked())
-                .isbn(metadata.getIsbn13() != null ? metadata.getIsbn13() : metadata.getIsbn10())
+                .isbn(nullIfEmptyInCleanMode(metadata.getIsbn13() != null ? metadata.getIsbn13() : metadata.getIsbn10(), ""))
                 .isbnLock(metadata.getIsbn13Locked())
+                .created(book.getAddedOn())
+                .lastModified(book.getAddedOn())
                 .build();
     }
 

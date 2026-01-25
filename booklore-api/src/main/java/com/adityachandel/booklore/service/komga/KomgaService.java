@@ -1,5 +1,6 @@
 package com.adityachandel.booklore.service.komga;
 
+import com.adityachandel.booklore.context.KomgaCleanContext;
 import com.adityachandel.booklore.mapper.komga.KomgaMapper;
 import com.adityachandel.booklore.model.dto.MagicShelf;
 import com.adityachandel.booklore.model.dto.Shelf;
@@ -55,6 +56,78 @@ public class KomgaService {
         LibraryEntity library = libraryRepository.findById(libraryId)
                 .orElseThrow(() -> new RuntimeException("Library not found"));
         return komgaMapper.toKomgaLibraryDto(library);
+    }
+
+    public KomgaPageableDto<Object> getReadlists(List<Long> libraryIds, String search, int page, int size, boolean unpaged) {
+        log.debug("Getting all readlists (not implemented) for libraryIds: {}, page: {}, size: {}", libraryIds, page, size);
+        
+        return KomgaPageableDto.<Object>builder()
+                .content(List.of())
+                .number(0)
+                .size(0)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
+                .numberOfElements(0)
+                .totalElements(0)
+                .totalPages(0)
+                .first(true)
+                .last(true)
+                .empty(true)
+                .build();
+    }
+
+    public KomgaPageableDto<Object> getOnDeckBooks(List<Long> libraryIds, int page, int size, boolean unpaged) {
+        log.debug("Getting on deck books (not implemented) for libraryIds: {}, page: {}, size: {}", libraryIds, page, size);
+        
+        return KomgaPageableDto.<Object>builder()
+                .content(List.of())
+                .number(0)
+                .size(0)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
+                .numberOfElements(0)
+                .totalElements(0)
+                .totalPages(0)
+                .first(true)
+                .last(true)
+                .empty(true)
+                .build();
+    }
+    
+    public KomgaPageableDto<KomgaSeriesDto> getNewSeries(List<Long> libraryIds, int page, int size, boolean unpaged) {
+        log.debug("Getting new series (not implemented) for libraryIds: {}, page: {}, size: {}", libraryIds, page, size);
+        
+        return KomgaPageableDto.<KomgaSeriesDto>builder()
+                .content(List.of())
+                .number(0)
+                .size(0)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
+                .numberOfElements(0)
+                .totalElements(0)
+                .totalPages(0)
+                .first(true)
+                .last(true)
+                .empty(true)
+                .build();
+    }
+    
+    public KomgaPageableDto<KomgaSeriesDto> getUpdatedSeries(List<Long> libraryIds, int page, int size, boolean unpaged) {
+        log.debug("Getting updated series (not implemented) for libraryIds: {}, page: {}, size: {}", libraryIds, page, size);
+        
+        return KomgaPageableDto.<KomgaSeriesDto>builder()
+                .content(List.of())
+                .number(0)
+                .size(0)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
+                .numberOfElements(0)
+                .totalElements(0)
+                .totalPages(0)
+                .first(true)
+                .last(true)
+                .empty(true)
+                .build();
     }
 
     public KomgaPageableDto<KomgaSeriesDto> getAllSeries(Long libraryId, int page, int size, boolean unpaged) {
@@ -147,6 +220,8 @@ public class KomgaService {
                 .content(content)
                 .number(actualPage)
                 .size(actualSize)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
                 .numberOfElements(content.size())
                 .totalElements(totalElements)
                 .totalPages(totalPages)
@@ -247,6 +322,8 @@ public class KomgaService {
                 .content(content)
                 .number(actualPage)
                 .size(actualSize)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
                 .numberOfElements(content.size())
                 .totalElements(totalElements)
                 .totalPages(totalPages)
@@ -279,6 +356,8 @@ public class KomgaService {
                 .content(content)
                 .number(page)
                 .size(size)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
                 .numberOfElements(content.size())
                 .totalElements(totalElements)
                 .totalPages(totalPages)
@@ -372,6 +451,8 @@ public class KomgaService {
                 .content(content)
                 .number(actualPage)
                 .size(actualSize)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
                 .numberOfElements(content.size())
                 .totalElements(totalElements)
                 .totalPages(totalPages)
@@ -550,6 +631,8 @@ public class KomgaService {
                 .content(content)
                 .number(actualPage)
                 .size(actualSize)
+                .pageable(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Pageable())
+                .sort(KomgaCleanContext.isCleanMode() ? null : new KomgaPageableDto.Sort())
                 .numberOfElements(content.size())
                 .totalElements(totalElements)
                 .totalPages(totalPages)

@@ -108,7 +108,7 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain komgaBasicAuthSecurityChain(HttpSecurity http, TokenBasedRememberMeServices komgaRememberMeServices) throws Exception {
         http
-                .securityMatcher("/komga/api/v1/**", "/komga/api/v2/**")
+                .securityMatcher("/komga/**")
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
