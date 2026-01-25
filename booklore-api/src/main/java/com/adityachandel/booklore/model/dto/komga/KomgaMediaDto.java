@@ -17,6 +17,8 @@ public class KomgaMediaDto {
     private String mediaProfile;
     private Integer pagesCount;
     private String comment;
-    private Boolean epubDivinaCompatible;
-    private Boolean epubIsKepub;
+    @Builder.Default
+    private Boolean epubDivinaCompatible= false;
+    @Builder.Default
+    private Boolean epubIsKepub = false;
 }
