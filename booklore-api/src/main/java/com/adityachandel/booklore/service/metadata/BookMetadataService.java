@@ -237,7 +237,7 @@ public class BookMetadataService {
                 
                 bookRepository.save(bookEntity);
                 notificationService.sendMessage(Topic.BOOK_UPDATE, bookMapper.toBook(bookEntity));
-                log.info("Successfully reloaded metadata from file for book ID: {}", bookId);
+                log.info("Successfully reloaded metadata from file for book ID: {} page count:{}", bookId, extracted.getPageCount());
             } else {
                 log.warn("No metadata could be extracted from file for book ID: {}", bookId);
             }
