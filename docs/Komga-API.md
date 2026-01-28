@@ -27,6 +27,15 @@ The Komga API implementation in Booklore provides the following endpoints:
 ### Users
 - `GET /api/v2/users/me` - Get current user details
 
+### Collections
+- `GET /api/v1/collections` - List collections (mapped to Magic Shelves)
+
+### Metadata
+- `GET /api/v1/genres` - List all genres (supports library and collection filtering)
+- `GET /api/v1/tags` - List all tags (supports library and collection filtering)
+- `GET /api/v1/publishers` - List all publishers (supports library and collection filtering)
+- `GET /api/v2/authors` - List all authors (supports search, pagination, and filtering)
+
 ## Data Model Mapping
 
 Booklore organizes books differently than Komga:
