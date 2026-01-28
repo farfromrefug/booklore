@@ -107,7 +107,7 @@ describe('BookMenuService', () => {
         mockUser
       );
 
-      expect(items).toHaveLength(6);
+      expect(items).toHaveLength(7);
       expect(items[0].label).toBe('Auto Fetch Metadata');
       expect(items[0].icon).toBe('pi pi-bolt');
       expect(items[1].label).toBe('Custom Fetch Metadata');
@@ -118,14 +118,15 @@ describe('BookMenuService', () => {
       expect(items[3].icon).toBe('pi pi-clone');
       expect(items[4].label).toBe('Reload Metadata from File');
       expect(items[4].icon).toBe('pi pi-refresh');
-      expect(items[4].label).toBe('Regenerate Covers');
-      expect(items[4].icon).toBe('pi pi-image');
-      expect(items[5].label).toBe('Generate Custom Covers');
-      expect(items[5].icon).toBe('pi pi-palette');
+      expect(items[5].label).toBe('Regenerate Covers');
+      expect(items[5].icon).toBe('pi pi-image');
+      expect(items[6].label).toBe('Generate Custom Covers');
+      expect(items[6].icon).toBe('pi pi-palette');
     });
 
     it('should return empty array when user has no permissions', () => {
       const items = service.getMetadataMenuItems(
+        vi.fn(),
         vi.fn(),
         vi.fn(),
         vi.fn(),
@@ -140,6 +141,7 @@ describe('BookMenuService', () => {
 
     it('should return empty array when user is null', () => {
       const items = service.getMetadataMenuItems(
+        vi.fn(),
         vi.fn(),
         vi.fn(),
         vi.fn(),
@@ -186,9 +188,11 @@ describe('BookMenuService', () => {
 
       items[4].command!({} as any);
       expect(reloadMetadata).toHaveBeenCalledOnce();
-      expect(regenerate).toHaveBeenCalledOnce();
 
       items[5].command!({} as any);
+      expect(regenerate).toHaveBeenCalledOnce();
+
+      items[6].command!({} as any);
       expect(generateCustomCovers).toHaveBeenCalledOnce();
     });
 
@@ -205,6 +209,7 @@ describe('BookMenuService', () => {
       } as User;
 
       const items = service.getMetadataMenuItems(
+        vi.fn(),
         vi.fn(),
         vi.fn(),
         vi.fn(),
