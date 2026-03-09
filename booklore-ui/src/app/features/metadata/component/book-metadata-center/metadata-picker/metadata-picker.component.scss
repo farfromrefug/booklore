@@ -25,6 +25,26 @@
 }
 
 
+// Detail loading banner
+.detail-loading-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8px;
+  color: var(--p-green-400);
+  font-size: 0.875rem;
+  font-weight: 600;
+  animation: fadeIn 0.3s ease-in;
+
+  i {
+    font-size: 1rem;
+  }
+}
+
 // Body
 .dialog-body {
   flex: 1;
@@ -128,6 +148,35 @@
       font-size: 0.9rem;
       color: var(--primary-color);
     }
+
+    &.collapsible-header {
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: var(--text-color);
+      }
+
+      .section-toggle {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--text-secondary-color);
+      }
+    }
+
+    .section-empty-badge {
+      font-size: 0.7rem;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: normal;
+      color: var(--text-secondary-color);
+      background: var(--surface-ground);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.125rem 0.5rem;
+      opacity: 0.8;
+    }
   }
 
   .section-content {
@@ -144,21 +193,20 @@
 }
 
 .cover-image {
-  width: 100px;
-  height: 150px;
+  width: 120px;
+  height: auto;
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 
   @media (min-width: 768px) {
-    width: 120px;
-    height: 180px;
+    width: 150px;
   }
 
   ::ng-deep img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    display: block;
   }
 }
 
@@ -199,6 +247,65 @@
   color: var(--text-secondary-color);
 }
 
+// Cover type icon in label
+.cover-type-icon {
+  font-size: 0.8rem;
+  margin-right: 0.25rem;
+}
+
+// Square cover for audiobooks
+.square-cover {
+  aspect-ratio: 1;
+
+  ::ng-deep img {
+    object-fit: cover;
+    aspect-ratio: 1;
+  }
+}
+
+// Audiobook cover row
+.audiobook-cover-row {
+  background: rgba(var(--p-primary-500-rgb), 0.03);
+}
+
+// Transfer button placeholder (same width as button)
+.transfer-btn-placeholder {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+// No cover placeholder
+.no-cover-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  background: var(--surface-ground);
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary-color);
+
+  @media (min-width: 768px) {
+    width: 150px;
+    height: 150px;
+  }
+
+  i {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+  }
+
+  span {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
 
 // Field Rows
 .field-row {
@@ -221,7 +328,7 @@
 
 // Cover field row specific styles
 .cover-field-row {
-  padding: 1.25rem 1rem;
+  padding: 1rem;
 
   .field-label {
     text-align: center;
@@ -255,7 +362,7 @@
 
   // Position covers towards the arrow on desktop only
   @media (min-width: 768px) {
-    padding: 1.5rem 1rem;
+    padding: 1rem;
 
     .field-side.current {
       justify-content: flex-end;

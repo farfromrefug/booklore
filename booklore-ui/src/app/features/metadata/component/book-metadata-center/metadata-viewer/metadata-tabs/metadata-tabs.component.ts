@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, Output} from '@angular/core';
+import {Component, EventEmitter, inject, Input, Output} from '@angular/core';
 import {UpperCasePipe} from '@angular/common';
 import {Book, BookRecommendation, BookType, FileInfo} from '../../../../../book/model/book.model';
 import {Tab, TabList, TabPanel, TabPanels, Tabs} from 'primeng/tabs';
@@ -9,10 +9,14 @@ import {BookNotesComponent} from '../../../../../book/components/book-notes/book
 import {BookReadingSessionsComponent} from '../../book-reading-sessions/book-reading-sessions.component';
 import {Button} from 'primeng/button';
 import {Tooltip} from 'primeng/tooltip';
+import {Image} from 'primeng/image';
+import {UrlHelperService} from '../../../../../../shared/service/url-helper.service';
+import {BookMetadataManageService} from '../../../../../book/service/book-metadata-manage.service';
+import {TranslocoDirective} from '@jsverse/transloco';
 
 export interface ReadEvent {
   bookId: number;
-  reader?: 'pdf-streaming' | 'epub-streaming';
+  reader?: 'epub-streaming';
   bookType?: BookType;
 }
 
@@ -59,7 +63,9 @@ export interface DeleteSupplementaryFileEvent {
     BookReadingSessionsComponent,
     Button,
     Tooltip,
-    UpperCasePipe
+    UpperCasePipe,
+    Image,
+    TranslocoDirective
   ],
   templateUrl: './metadata-tabs.component.html',
   styleUrl: './metadata-tabs.component.scss'
@@ -68,6 +74,9 @@ export class MetadataTabsComponent {
   @Input() book!: Book;
   @Input() bookInSeries: Book[] = [];
   @Input() recommendedBooks: BookRecommendation[] = [];
+
+  protected urlHelper = inject(UrlHelperService);
+  private bookMetadataManageService = inject(BookMetadataManageService);
 
   @Output() readBook = new EventEmitter<ReadEvent>();
   @Output() downloadBook = new EventEmitter<DownloadEvent>();
@@ -80,7 +89,7 @@ export class MetadataTabsComponent {
     return this.bookInSeries && this.bookInSeries.length > 1 ? 'series' : 'similar';
   }
 
-  read(bookId: number, reader?: 'pdf-streaming' | 'epub-streaming', bookType?: BookType): void {
+  read(bookId: number, reader?: 'epub-streaming', bookType?: BookType): void {
     this.readBook.emit({ bookId, reader, bookType });
   }
 
@@ -160,5 +169,9 @@ export class MetadataTabsComponent {
 
   isPhysicalBook(): boolean {
     return !this.book?.primaryFile && (!this.book?.alternativeFormats || this.book.alternativeFormats.length === 0);
+  }
+
+  supportsDualCovers(): boolean {
+    return this.bookMetadataManageService.supportsDualCovers(this.book);
   }
 }

@@ -114,33 +114,23 @@ export class BookDialogHelperService {
     });
   }
 
-  openCustomSendDialog(bookId: number): DynamicDialogRef | null {
+  openCustomSendDialog(book: Book): DynamicDialogRef | null {
     return this.openDialog(BookSenderComponent, {
       showHeader: false,
       styleClass: `${DialogSize.SM} ${DialogStyle.MINIMAL}`,
       data: {
-        bookId: bookId,
+        book: book,
       },
     });
   }
 
-  openCoverSearchDialog(bookId: number): DynamicDialogRef | null {
+  openCoverSearchDialog(bookId: number, coverType?: 'ebook' | 'audiobook'): DynamicDialogRef | null {
     return this.openDialog(CoverSearchComponent, {
       showHeader: false,
       styleClass: `${DialogSize.FULL} ${DialogStyle.MINIMAL}`,
       data: {
         bookId: bookId,
-      },
-    });
-  }
-
-  openMetadataFetchOptionsDialog(bookId: number): DynamicDialogRef | null {
-    return this.openDialog(MetadataFetchOptionsComponent, {
-      showHeader: false,
-      styleClass: `${DialogSize.SM} ${DialogStyle.MINIMAL}`,
-      data: {
-        bookIds: [bookId],
-        metadataRefreshType: MetadataRefreshType.BOOKS,
+        coverType: coverType,
       },
     });
   }
